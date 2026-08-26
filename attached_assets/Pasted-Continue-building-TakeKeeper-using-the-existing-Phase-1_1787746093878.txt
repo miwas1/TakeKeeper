@@ -1,0 +1,886 @@
+Continue building **TakeKeeper** using the existing Phase 1 architecture.
+
+Do NOT rebuild or replace working Phase 1 infrastructure unnecessarily.
+
+First inspect the current repository, database, architecture, design system, and routes. Verify that Phase 1 is healthy before modifying it.
+
+# Phase 2 Goal
+
+Build the complete non-AI product shell and core filmmaking workflow around which the later Gemini continuity system will operate.
+
+At the end of this phase, a user should be able to navigate TakeKeeper, create and manage projects/scenes/shots/takes, open the seeded demo project, move through the intended shooting workflow, and understand exactly how the final product will work even though full Gemini continuity analysis is not implemented yet.
+
+The UI must feel like polished filmmaking software rather than a generic generated dashboard.
+
+# Core Product Promise
+
+Everything should reinforce:
+
+**Know what changed before you roll again.**
+
+TakeKeeper is not:
+
+* a chatbot;
+* a screenplay generator;
+* a generic filmmaking assistant;
+* a production-management suite.
+
+It is specifically an **agentic visual continuity supervisor**.
+
+# 1. Navigation
+
+Implement the primary navigation.
+
+## Desktop / Web
+
+Use a left sidebar containing:
+
+* Projects
+* Shoot
+* Activity
+* Reports
+* Settings
+
+The main workspace should adapt to the selected section.
+
+## Compact / Mobile-style Layout
+
+Use four primary bottom tabs:
+
+* Projects
+* Shoot
+* Activity
+* Settings
+
+Make **Shoot** visually prominent.
+
+Do not create more than four primary mobile tabs.
+
+# 2. Projects Home
+
+Create the main Projects screen.
+
+Header:
+
+**TakeKeeper**
+
+Supporting text:
+
+**Continuity, covered.**
+
+Include:
+
+* profile/account access;
+* New Project CTA;
+* Active Shoot section;
+* Projects section.
+
+## Active Shoot Card
+
+Show:
+
+* project name;
+* current scene;
+* shoot date;
+* unresolved issue count;
+* Continue Shooting button.
+
+Hide or gracefully handle this section when no shoot exists.
+
+## Project Cards
+
+Each project should show:
+
+* thumbnail or tasteful placeholder;
+* title;
+* project type;
+* scene count;
+* unresolved warning count;
+* last modified;
+* project status.
+
+Avoid clutter.
+
+# 3. New Project Flow
+
+Implement a fast project creation workflow.
+
+Title:
+
+**What are you shooting?**
+
+Fields:
+
+* Project title
+* Project type
+
+Options:
+
+* Short film
+* Feature
+* Series
+* Commercial
+* Music video
+* Social/content
+* Other
+
+Primary CTA:
+
+**Create Project**
+
+Secondary CTA:
+
+**Import Script**
+
+Script import does not need Gemini processing yet. Build the UI and data path so the full Script Breakdown Agent can be connected in a later phase.
+
+Allow at minimum:
+
+* pasted screenplay text;
+* plain text input/file if already supported reliably.
+
+Do not fake AI breakdown results.
+
+# 4. Project Detail
+
+Create a polished project workspace.
+
+Display:
+
+* project title;
+* project type;
+* status;
+* scenes;
+* shoot activity;
+* unresolved continuity warning count;
+* appropriate actions.
+
+Allow:
+
+* edit project;
+* create scene;
+* open scene;
+* archive/delete project where appropriate.
+
+Deletion should use a confirmation dialog.
+
+# 5. Scene Creation
+
+Users must be able to manually create a scene.
+
+Fields should support:
+
+* scene number;
+* slugline;
+* INT/EXT;
+* location;
+* time of day;
+* story day;
+* script text.
+
+Keep the workflow concise.
+
+# 6. Scene Workspace
+
+This is one of the most important product surfaces.
+
+Header example:
+
+**Scene 12**
+
+Subtitle:
+
+**INT. MAYA'S APARTMENT — NIGHT**
+
+Tabs:
+
+* Continuity
+* Shots
+* Script
+
+## Continuity Tab
+
+Display approved/current continuity items grouped into:
+
+* Wardrobe
+* Props
+* Hair & Makeup
+* Blocking
+* Set
+* Action
+* Other
+
+Each item should support:
+
+* entity;
+* expected/current state;
+* source;
+* confidence if applicable;
+* last changed take when available;
+* edit;
+* delete.
+
+Allow manually adding continuity items.
+
+Future AI-generated Continuity Bible entries will use this same UI.
+
+## Shots Tab
+
+Display shots for the scene.
+
+Example:
+
+* 3A Wide
+* 3B Maya CU
+* 3C Jon CU
+
+Allow:
+
+* create shot;
+* edit shot;
+* open shot.
+
+## Script Tab
+
+Display scene screenplay text in a readable filmmaking-oriented format.
+
+# 7. Shot Workspace
+
+Create a clear shot page.
+
+Header example:
+
+`SC 12 • SHOT 3A`
+
+Display:
+
+* shot name/description;
+* reference status;
+* takes;
+* continuity issue count;
+* primary Shoot/Check Take action.
+
+Allow creating and viewing takes.
+
+# 8. Takes
+
+Implement take records.
+
+Take card example:
+
+**TAKE 04**
+
+Display:
+
+* take number;
+* timestamp;
+* notes;
+* issue count;
+* reference status;
+* rating/status;
+* Circle Take state.
+
+Support statuses:
+
+* Unrated
+* Hold
+* Circle
+* Reject
+
+Implement:
+
+**Circle Take**
+
+When circled:
+
+* persist it;
+* update activity history;
+* visually distinguish the take;
+* do not use emoji as the primary implementation.
+
+# 9. Shoot Screen
+
+Build a visually impressive Shoot screen even before full AI functionality is added.
+
+The layout should prioritize the image/camera area.
+
+Header overlay example:
+
+`SC 12 • SHOT 3A`
+
+Reference state pill:
+
+`NO REFERENCE`
+
+or
+
+`REFERENCE READY`
+
+Bottom controls should accommodate:
+
+* upload/gallery;
+* primary capture/upload action;
+* camera switching when supported later;
+* notes.
+
+When no reference exists:
+
+Primary wording:
+
+**Capture Reference**
+
+On web, support:
+
+**Upload Reference**
+
+After a reference exists:
+
+Primary wording:
+
+**Check New Take**
+
+On web, support:
+
+**Upload New Take**
+
+Include a thumbnail of the approved reference when available.
+
+Do not fake camera capabilities that are unsupported.
+
+# 10. Reference Preview Flow
+
+Implement the UI/data workflow for selecting a reference image.
+
+After upload/capture:
+
+Show preview.
+
+Actions:
+
+* Retake / Choose Another
+* Use as Reference
+
+Once selected:
+
+* create or update the relevant take/media records;
+* mark it as reference;
+* persist it;
+* return the user to the shot/shoot workflow.
+
+Do not run fake Gemini analysis.
+
+If AI is not connected yet, clearly show a development state such as:
+
+**Reference saved**
+
+rather than pretending it was analyzed.
+
+# 11. New Take Flow
+
+Allow the user to capture/upload a new take after a reference exists.
+
+Persist:
+
+* image/media;
+* take record;
+* timestamp;
+* associated scene/shot/project.
+
+The later AI phase will attach observations and issues to this take.
+
+For now, transition to an analysis-ready state without producing fake mismatches.
+
+If an AI comparison endpoint is not yet implemented, provide a clearly labeled development-safe state rather than fabricated output.
+
+# 12. Results Screen Shell
+
+Build the final results interface now so later AI data can plug into it directly.
+
+Title should support dynamic counts such as:
+
+**3 things changed**
+
+Subtitle example:
+
+`Take 04 compared with approved reference`
+
+Top section:
+
+Desktop:
+
+```text
+Reference Image | Current Take | Issue Sidebar
+```
+
+Mobile:
+
+```text
+Reference
+Current Take
+Issues
+```
+
+Images should support sensible enlargement/zoom behavior where feasible.
+
+Below or beside them, support continuity issue cards.
+
+# 13. Issue Card Component
+
+Create reusable issue cards capable of displaying:
+
+* title;
+* category;
+* confidence;
+* severity;
+* expected/reference state;
+* observed/current state;
+* explanation;
+* suggested correction.
+
+Example:
+
+**Jacket changed**
+
+`Wardrobe · High confidence`
+
+Reference:
+
+`Unzipped`
+
+Current:
+
+`Zipped`
+
+Suggested correction:
+
+`Unzip Maya's jacket before rolling.`
+
+Actions:
+
+* Fix & Recheck
+* Intentional
+* Ignore
+* Add Note
+
+The buttons can exist as UI/data-ready workflows but must not fabricate AI findings.
+
+# 14. Confidence UX
+
+Build reusable confidence presentation.
+
+Rules:
+
+## 85%+
+
+Normal issue presentation.
+
+## 60–84%
+
+Label:
+
+**Likely mismatch**
+
+## Below 60%
+
+Place under:
+
+**Worth checking**
+
+Severity must not be communicated using color alone.
+
+Use:
+
+* text;
+* icons;
+* labels;
+* color.
+
+# 15. Intentional Change Dialog
+
+Build the workflow UI now.
+
+When a user selects:
+
+**Intentional**
+
+ask:
+
+**Update continuity from this take?**
+
+Options:
+
+### This shot only
+
+Change applies only to the current shot.
+
+### Rest of scene
+
+Change applies through the remaining scene context.
+
+### From now on
+
+Update the approved state for subsequent relevant takes.
+
+### Cancel
+
+The actual agent reasoning comes later, but user decisions should already map cleanly to the Phase 1 database model.
+
+Persist decisions if real issues exist in the database.
+
+Do not fabricate issues solely to demonstrate the dialog.
+
+# 16. Recheck Workflow Shell
+
+Build the flow for:
+
+**Fix & Recheck**
+
+The user should be taken back to the capture/upload workflow for another take.
+
+Prepare the success state:
+
+**All clear**
+
+Supporting text:
+
+**Setup matches your approved continuity.**
+
+Do not display this unless a future real comparison returns zero meaningful issues.
+
+For now, ensure the UI component and route are ready.
+
+# 17. Activity Timeline
+
+Create the Activity screen as a readable production history.
+
+Support events such as:
+
+```text
+14:08
+Take 03 marked Circle
+
+14:11
+Reference updated
+
+14:16
+Take 04
+3 continuity warnings detected
+
+14:20
+Take 05
+All clear
+```
+
+Only show events that actually exist in persisted application data.
+
+Activity should be generated from real application actions.
+
+# 18. Reports Screen
+
+Create the report UI shell.
+
+A Daily Report should eventually include:
+
+* project;
+* shoot date;
+* scenes worked;
+* shots;
+* take count;
+* circle takes;
+* continuity issues caught;
+* intentional changes;
+* unresolved warnings;
+* notes.
+
+Build:
+
+**Generate Report**
+
+The actual AI Report Agent can be connected later.
+
+Do not fake generated prose.
+
+If report generation is unavailable, clearly indicate that the feature awaits the agent implementation.
+
+# 19. Settings
+
+Implement sections:
+
+## Account
+
+* profile
+* email
+
+## Subscription
+
+Prepare UI structure only.
+
+Do not implement RevenueCat yet.
+
+## Notifications
+
+Prepare settings such as:
+
+* shoot reminders
+* issue reminders
+
+Do not implement OneSignal yet.
+
+## AI & Privacy
+
+* explanation of media processing;
+* data deletion;
+* Delete Project & Media functionality where applicable.
+
+## About
+
+* app version;
+* support;
+* privacy;
+* terms.
+
+## Developer
+
+Available only in development/demo mode.
+
+Include a shell for:
+
+* Agent Activity
+* API health
+* current Gemini model
+* Google Agent status
+* RevenueCat status
+* OneSignal status
+
+Do not expose secrets.
+
+# 20. Demo Project
+
+Create a prominent:
+
+**Try Demo Project**
+
+option.
+
+Seed:
+
+# The Last Cup
+
+Scene:
+
+**INT. KITCHEN — NIGHT**
+
+Character:
+
+**Maya**
+
+Continuity:
+
+* red jacket — unzipped
+* white mug — Maya's right
+* black phone — face-down beside mug
+* keys — behind phone
+
+Create at least one sensible shot such as:
+
+**1A Wide**
+
+The demo project must be navigable immediately.
+
+Do not require judges/users to import their own screenplay before seeing the product.
+
+Do NOT hardcode fake continuity detection results.
+
+# 21. Empty States
+
+Implement polished educational empty states.
+
+Projects:
+
+**Your first shoot starts here.**
+
+Scene:
+
+**Add a scene and TakeKeeper will build its continuity checklist.**
+
+No reference:
+
+**Capture the setup you want future takes to match.**
+
+No issues:
+
+**All clear. This setup matches the approved reference.**
+
+Only display the final message when supported by real analysis data later.
+
+# 22. Loading and Failure States
+
+Create polished states for:
+
+* loading projects;
+* loading scenes;
+* uploading media;
+* missing data;
+* API failure;
+* upload failure;
+* unauthorized access;
+* unsupported media;
+* offline/network issues.
+
+Future AI error:
+
+**Couldn't complete the continuity check**
+
+Supporting text:
+
+**Your take is saved. Try the analysis again.**
+
+CTA:
+
+**Retry Analysis**
+
+The application must never lose an uploaded/captured take because AI analysis fails.
+
+# 23. Accessibility
+
+Ensure:
+
+* large touch targets;
+* keyboard-friendly web controls;
+* semantic labels;
+* icon-only controls have accessible labels;
+* sufficient contrast;
+* responsive text;
+* issue severity does not rely on color alone.
+
+# 24. Visual Quality
+
+The finished shell should feel credible enough to show in the hackathon video even before AI is connected.
+
+Avoid:
+
+* giant gradients;
+* generic AI visuals;
+* excessive rounded cards;
+* endless dashboards;
+* emoji navigation;
+* dead primary actions;
+* placeholder lorem ipsum;
+* fake charts;
+* fake continuity issues;
+* fake AI processing.
+
+Use filmmaking terminology throughout:
+
+* Project
+* Scene
+* Shot
+* Take
+* Reference
+* Continuity
+* Circle Take
+* Continuity Bible
+* Issue
+* Shoot Day
+* Daily Report
+
+Avoid technical AI words such as:
+
+* LLM
+* tokens
+* inference
+* embedding
+* computer vision
+
+in normal user-facing screens.
+
+# 25. Data Integrity
+
+All project, scene, shot, take, reference, media, continuity item, and activity changes implemented during this phase must persist to the database.
+
+Reloading the application must not erase user work.
+
+No important product state should live only in React/component state.
+
+# 26. Responsive Desktop Experience
+
+Make desktop a first-class experience.
+
+Do not simply scale up the mobile layout.
+
+Important desktop views should make efficient use of screen space.
+
+The future comparison screen should support:
+
+```text
+Reference image | Current image | Issues
+```
+
+The Scene workspace should also take advantage of desktop width.
+
+# 27. Do Not Build Yet
+
+Do NOT implement the complete:
+
+* Gemini Visual State Agent;
+* Continuity Supervisor Agent;
+* Script Breakdown Agent;
+* Report Agent;
+* RevenueCat integration;
+* OneSignal integration;
+* native mobile polish;
+* collaborative editing;
+* scheduling;
+* budgeting;
+* call sheets;
+* casting;
+* screenplay writing;
+* storyboards;
+* video editing;
+* video generation.
+
+This phase is the complete product shell, not the full AI implementation.
+
+# Phase 2 Acceptance Test
+
+Do not mark the phase complete until this flow works:
+
+1. Open TakeKeeper.
+2. See Projects screen.
+3. Create a new project.
+4. Reload the app and confirm it persists.
+5. Create a scene.
+6. Add/edit continuity items manually.
+7. Create a shot.
+8. Open the Shoot workflow.
+9. Upload a reference image.
+10. Reference persists after reload.
+11. Upload/create a new take.
+12. Take persists after reload.
+13. View the take inside its shot.
+14. Mark a take Circle.
+15. Activity timeline records the action.
+16. Open the seeded **The Last Cup** project.
+17. Its scene and Continuity Bible display correctly.
+18. Desktop layout works correctly.
+19. Compact/mobile layout works correctly.
+20. No fake Gemini results are shown.
+21. No primary implemented workflow leads to a dead screen.
+22. TypeScript/build/lint checks pass.
+
+# End-of-Phase Report
+
+When finished, provide:
+
+1. concise summary of what was built;
+2. routes/screens implemented;
+3. reusable components created;
+4. database functionality connected;
+5. media upload/storage functionality implemented;
+6. demo project status;
+7. responsive behavior completed;
+8. remaining placeholders specifically reserved for Phase 3+;
+9. any known issues;
+10. results of the Phase 2 acceptance test.
+
+Do not proceed into the full Gemini visual analysis phase unless all essential Phase 2 workflows are working reliably.
