@@ -1,0 +1,1 @@
+- [OpenAPI generator compatibility](openapi-generator-compatibility.md) — avoid Zod 4-only generated helpers while this workspace remains on Zod 3.

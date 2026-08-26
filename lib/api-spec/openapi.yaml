@@ -3,20 +3,25 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: TakeKeeper foundation API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: dashboard
+    description: Project overview and activity
+  - name: projects
+    description: Film projects
+  - name: scenes
+    description: Script scenes and continuity setup
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +29,294 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get the current production overview
+      responses:
+        "200":
+          description: Dashboard overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+  /activity:
+    get:
+      operationId: listActivity
+      tags: [dashboard]
+      summary: List recent agent and production activity
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityEvent"
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects visible to the current user
+      responses:
+        "200":
+          description: Projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a film project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /projects/{projectId}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get one project with its scenes
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /projects/{projectId}/scenes:
+    get:
+      operationId: listScenes
+      tags: [scenes]
+      summary: List scenes in a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Scenes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Scene"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createScene
+      tags: [scenes]
+      summary: Add a scene to a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SceneInput"
+      responses:
+        "201":
+          description: Created scene
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scene"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: number
+        minimum: 1
+        maximum: 50
+        default: 10
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
   schemas:
     HealthStatus:
       type: object
       properties:
         status:
           type: string
-      required:
-        - status
-
+        database:
+          type: string
+      required: [status, database]
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+      required: [error]
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        sceneCount:
+          type: number
+        activeIssueCount:
+          type: number
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, title, type, status, sceneCount, activeIssueCount, updatedAt]
+    ProjectInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          default: short_film
+      required: [title]
+    ProjectDetail:
+      allOf:
+        - $ref: "#/components/schemas/Project"
+        - type: object
+          properties:
+            scenes:
+              type: array
+              items:
+                $ref: "#/components/schemas/Scene"
+          required: [scenes]
+    Scene:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        sceneNumber:
+          type: string
+        slugline:
+          type: string
+        location:
+          type: string
+        intExt:
+          type: string
+        timeOfDay:
+          type: string
+        storyDay:
+          type: string
+        scriptText:
+          type: [string, "null"]
+        shotCount:
+          type: number
+        continuityCount:
+          type: number
+        sortOrder:
+          type: number
+      required: [id, projectId, sceneNumber, slugline, location, intExt, timeOfDay, storyDay, shotCount, continuityCount, sortOrder]
+    SceneInput:
+      type: object
+      properties:
+        sceneNumber:
+          type: string
+          minLength: 1
+        slugline:
+          type: string
+          minLength: 1
+        location:
+          type: string
+        intExt:
+          type: string
+        timeOfDay:
+          type: string
+        storyDay:
+          type: string
+        scriptText:
+          type: string
+      required: [sceneNumber, slugline]
+    Dashboard:
+      type: object
+      properties:
+        activeProjectCount:
+          type: number
+        sceneCount:
+          type: number
+        openIssueCount:
+          type: number
+        circledTakeCount:
+          type: number
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityEvent"
+      required: [activeProjectCount, sceneCount, openIssueCount, circledTakeCount, projects, recentActivity]
+    ActivityEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        agent:
+          type: string
+        action:
+          type: string
+        status:
+          type: string
+        latencyMs:
+          type: [number, "null"]
+        createdAt:
+          type: string
+          format: date-time
+        projectTitle:
+          type: [string, "null"]
+      required: [id, agent, action, status, createdAt, projectTitle]

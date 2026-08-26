@@ -1,45 +1,50 @@
-# [Project name]
+# TakeKeeper
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+TakeKeeper is a production-monitor workspace that helps film crews know what changed before they roll again.
 
-## Run & Operate
+## Run & operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/api-server run dev` — API server (managed workflow)
+- `pnpm --filter @workspace/takekeeper run dev` — web app (managed workflow)
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and validators
+- `pnpm --filter @workspace/db run push` — apply development schema
+- `pnpm --filter @workspace/scripts run seed` — idempotently seed The Last Cup
+- `pnpm run typecheck` — full workspace typecheck
+- `pnpm run build` — typecheck and build
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- pnpm workspace, Node.js, strict TypeScript
+- React + Vite + TanStack Query
+- Express 5 + Pino
+- PostgreSQL + Drizzle ORM
+- OpenAPI + Orval + Zod
+- Replit App Storage
+- Google Gemini / ADK / Agent Engine architecture only
 
-## Where things live
+## Source of truth
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- API contract: `lib/api-spec/openapi.yaml`
+- Database schema: `lib/db/src/schema/`
+- Structured domain outputs: `lib/takekeeper-domain/src/index.ts`
+- Design tokens: `artifacts/takekeeper/src/index.css`
+- Google agent boundaries: `artifacts/api-server/src/services/google-ai/`
+- Application tools: `artifacts/api-server/src/tools/`
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- AI output is always validated and cannot write the database directly.
+- Media bytes live in App Storage; PostgreSQL stores object keys and metadata only.
+- Runtime AI is Google-only; do not add non-Google models or agent frameworks.
+- Protected routes fail closed in production until the production identity adapter is configured.
+- API changes begin in OpenAPI and require codegen before client or route changes.
 
-## Product
+## Product boundaries
 
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
+Phase 1 is the technical foundation. Do not add fake continuity comparisons, RevenueCat, OneSignal, production scheduling, casting, budgeting, screenplay writing, storyboards, or editing.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Run API and web packages through their Replit workflows so `PORT` and `BASE_PATH` are injected.
+- Re-run codegen after every OpenAPI change.
+- Seed data is domain data only; never seed fake AI observations or issues.

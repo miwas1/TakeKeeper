@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "TakeKeeper"
+description = "A production-monitor workspace for film crews to manage projects, scenes, takes, continuity state, and future Gemini-powered visual supervision."
+version = "1.0.0"
+id = "artifacts/takekeeper"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22277
+
+[services.development]
+run = "pnpm --filter @workspace/takekeeper run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/takekeeper", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/takekeeper/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22277"
+BASE_PATH = "/"

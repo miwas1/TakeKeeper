@@ -1,0 +1,87 @@
+import {
+  boolean,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
+import { projectsTable } from "./core";
+
+export const scenesTable = pgTable(
+  "scenes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id").notNull().references(() => projectsTable.id, { onDelete: "cascade" }),
+    sceneNumber: text("scene_number").notNull(),
+    slugline: text("slugline").notNull(),
+    location: text("location").notNull().default(""),
+    intExt: text("int_ext").notNull().default(""),
+    timeOfDay: text("time_of_day").notNull().default(""),
+    storyDay: text("story_day").notNull().default(""),
+    scriptText: text("script_text"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("scenes_project_number_uidx").on(table.projectId, table.sceneNumber),
+    index("scenes_project_sort_idx").on(table.projectId, table.sortOrder),
+  ],
+);
+
+export const shotsTable = pgTable(
+  "shots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sceneId: uuid("scene_id").notNull().references(() => scenesTable.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    description: text("description"),
+    status: text("status").notNull().default("planned"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (table) => [index("shots_scene_idx").on(table.sceneId)],
+);
+
+export const takesTable = pgTable(
+  "takes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shotId: uuid("shot_id").notNull().references(() => shotsTable.id, { onDelete: "cascade" }),
+    takeNumber: integer("take_number").notNull(),
+    status: text("status").notNull().default("captured"),
+    notes: text("notes"),
+    capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
+    isReference: boolean("is_reference").notNull().default(false),
+    isCircle: boolean("is_circle").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("takes_shot_number_uidx").on(table.shotId, table.takeNumber),
+    index("takes_shot_idx").on(table.shotId),
+  ],
+);
+
+export const mediaTable = pgTable(
+  "media",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id").notNull().references(() => projectsTable.id, { onDelete: "cascade" }),
+    sceneId: uuid("scene_id").references(() => scenesTable.id, { onDelete: "set null" }),
+    takeId: uuid("take_id").references(() => takesTable.id, { onDelete: "set null" }),
+    storageKey: text("storage_key").notNull().unique(),
+    mediaType: text("media_type").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("media_project_idx").on(table.projectId),
+    index("media_scene_idx").on(table.sceneId),
+    index("media_take_idx").on(table.takeId),
+  ],
+);

@@ -1,0 +1,651 @@
+You are building **TakeKeeper**, an agentic visual continuity supervisor for film crews.
+
+The core product promise is:
+
+**Know what changed before you roll again.**
+
+TakeKeeper allows a filmmaker to capture an approved visual reference for a scene, capture a later take, use Gemini to identify continuity differences, let the filmmaker approve or fix changes, and remember approved changes for future takes.
+
+This project is being built for the **Replit track of the Agentic Cinema Hackathon**.
+
+For this phase, focus ONLY on the technical foundation and architecture. Do not build the full AI continuity workflow yet.
+
+# Phase 1 Goal
+
+Create a clean, production-ready foundation that all later TakeKeeper features can safely build upon.
+
+At the end of this phase, the application should:
+
+* run successfully on Replit;
+* have a responsive web application foundation;
+* have a clean TypeScript architecture;
+* have a professional TakeKeeper design system;
+* connect successfully to persistent PostgreSQL storage;
+* have object/media storage architecture ready;
+* have Google Cloud / Gemini / ADK configuration prepared;
+* have authentication architecture prepared;
+* have the complete core database schema;
+* have no major placeholder architecture that will need to be rewritten later.
+
+# Mandatory Technology Direction
+
+Use:
+
+* TypeScript
+* React
+* Expo / Expo Router where appropriate for shared web/mobile architecture
+* Replit deployment
+* Replit PostgreSQL Database
+* Replit App Storage or the appropriate Replit-hosted object storage solution
+* Google Gemini for ALL runtime AI
+* Google Agent Development Kit / Google Cloud Agent Platform / Agent Engine for the production agent architecture
+
+Do NOT integrate:
+
+* OpenAI
+* Anthropic
+* Claude
+* OpenRouter
+* LangChain
+* non-Google AI models
+* third-party agent frameworks that invoke non-Google models
+
+The application may eventually use non-AI services such as RevenueCat and OneSignal, but DO NOT implement them in this phase.
+
+# 1. Inspect Before Building
+
+Before making large changes:
+
+1. inspect the current repository;
+2. inspect existing files and configuration;
+3. determine what Replit already generated;
+4. preserve useful working code;
+5. remove or refactor only what conflicts with the final architecture;
+6. produce a short implementation plan before beginning.
+
+Do not blindly regenerate the entire project if a usable foundation already exists.
+
+# 2. Project Architecture
+
+Create a clean separation between:
+
+* application UI;
+* feature modules;
+* shared types;
+* API/backend;
+* database access;
+* storage services;
+* Google AI/agent services;
+* authentication;
+* validation schemas;
+* application tools/functions;
+* configuration.
+
+Use an architecture approximately like:
+
+```text
+/apps
+  /web-or-mobile
+    /app
+    /components
+    /features
+      /projects
+      /scenes
+      /shoot
+      /continuity
+      /activity
+      /settings
+    /services
+    /hooks
+    /types
+
+/server
+  /api
+  /db
+  /agents
+  /services
+    /storage
+    /google-ai
+    /auth
+  /schemas
+  /tools
+
+/shared
+  /types
+  /schemas
+  /constants
+```
+
+Adjust this structure if necessary for Replit or Expo, but preserve strong separation of concerns.
+
+Do not create unnecessary abstraction layers.
+
+# 3. Database Schema
+
+Implement the relational schema needed for the full product.
+
+Create tables for at least:
+
+## users
+
+* id
+* email
+* display_name
+* created_at
+* updated_at
+
+## projects
+
+* id
+* owner_id
+* title
+* type
+* status
+* created_at
+* updated_at
+
+## project_members
+
+* id
+* project_id
+* user_id
+* role
+* created_at
+
+## scenes
+
+* id
+* project_id
+* scene_number
+* slugline
+* location
+* int_ext
+* time_of_day
+* story_day
+* script_text
+* sort_order
+* created_at
+* updated_at
+
+## continuity_items
+
+* id
+* scene_id
+* category
+* entity
+* expected_state
+* source_type
+* confidence
+* active
+* created_at
+* updated_at
+
+## shots
+
+* id
+* scene_id
+* label
+* description
+* status
+* created_at
+* updated_at
+
+## takes
+
+* id
+* shot_id
+* take_number
+* status
+* notes
+* captured_at
+* is_reference
+* is_circle
+* created_at
+* updated_at
+
+## media
+
+* id
+* project_id
+* scene_id
+* take_id
+* storage_key
+* media_type
+* width
+* height
+* created_at
+
+## observations
+
+* id
+* take_id
+* category
+* entity
+* observed_state
+* confidence
+* region_json
+* created_at
+
+## continuity_issues
+
+* id
+* scene_id
+* take_id
+* category
+* entity
+* expected_state
+* observed_state
+* severity
+* confidence
+* explanation
+* suggested_fix
+* status
+* resolution
+* resolved_at
+* created_at
+* updated_at
+
+Supported issue statuses:
+
+* open
+* fixed
+* intentional
+* ignored
+
+## continuity_state_changes
+
+* id
+* scene_id
+* continuity_item_id
+* previous_state
+* new_state
+* effective_scope
+* effective_from_take_id
+* effective_until_take_id nullable
+* supersedes_change_id nullable
+* source_take_id
+* user_id
+* created_at
+
+Design `effective_scope` to support at least:
+
+* this_shot
+* rest_of_scene
+* from_now_on
+
+## agent_events
+
+* id
+* project_id
+* agent
+* action
+* tool_name
+* status
+* latency_ms
+* metadata_json
+* created_at
+
+## entitlements
+
+Prepare the schema for future monetization but do not implement billing yet.
+
+Include:
+
+* user_id
+* plan
+* shoot_pass_expires_at
+* revenuecat_customer_id
+* updated_at
+
+Create appropriate:
+
+* primary keys;
+* foreign keys;
+* indexes;
+* cascade behavior;
+* ownership relationships;
+* timestamps.
+
+Use migrations rather than relying on manual database changes.
+
+# 4. Validation Schemas
+
+Create shared structured validation schemas for future AI and application workflows.
+
+Prepare schemas for:
+
+* SceneBreakdown
+* ContinuityItem
+* VisualObservation
+* VisualStateResult
+* ContinuityIssue
+* ContinuityCheckResult
+* StateChangeDecision
+* AgentEvent
+* DailyReport
+
+These schemas will later be used to validate Gemini structured outputs.
+
+Do not allow arbitrary free-form AI output to become authoritative database state.
+
+# 5. Media Storage Architecture
+
+Configure the application so large images will NEVER be stored directly in PostgreSQL.
+
+Prepare a storage service abstraction that supports:
+
+* upload;
+* retrieval;
+* deletion;
+* metadata;
+* future thumbnails;
+* authorized project access.
+
+Database rows should store only:
+
+* storage key;
+* metadata;
+* ownership/relations.
+
+Do not implement the full capture workflow yet.
+
+# 6. Google AI / Agent Architecture
+
+Prepare the Google AI architecture without implementing the complete continuity workflow.
+
+Create clear server-side modules for future:
+
+* Script Breakdown Agent
+* Visual State Agent
+* Continuity Supervisor Agent
+* Report Agent
+
+The intended production architecture must be:
+
+```text
+TakeKeeper on Replit
+        ↓
+TakeKeeper backend
+        ↓
+Google Cloud Agent Platform / Agent Engine
+        ↓
+ADK agents
+        ↓
+Gemini
+        ↓
+validated TakeKeeper tools
+        ↓
+application/database state
+```
+
+The model must NEVER directly mutate the database.
+
+Future agent mutations must use this pattern:
+
+```text
+Gemini requests tool call
+→ backend validates arguments
+→ application executes function
+→ database changes
+→ result returned to agent
+```
+
+Create interfaces/placeholders for application tools such as:
+
+* get_scene
+* get_continuity_bible
+* get_reference_take
+* get_previous_approved_changes
+* save_observations
+* create_issue
+* resolve_issue
+* approve_state_change
+* update_continuity_state
+* get_shoot_day_takes
+* generate_report
+
+Do not fake agent results.
+
+# 7. Environment Configuration
+
+Use environment variables / Replit Secrets.
+
+Prepare support for variables such as:
+
+```text
+DATABASE_URL
+GEMINI_MODEL
+GOOGLE_CLOUD_PROJECT
+GOOGLE_CLOUD_LOCATION
+GOOGLE_APPLICATION_CREDENTIALS or appropriate Google auth configuration
+AGENT_ENGINE_ID or equivalent deployment configuration
+```
+
+Do not hardcode secrets.
+
+Do not scatter Gemini model IDs throughout the application.
+
+The selected runtime model should be configurable centrally using:
+
+`GEMINI_MODEL`
+
+Create an environment validation module so missing required variables produce clear development errors.
+
+# 8. Authentication Foundation
+
+Prepare a production-ready authentication architecture.
+
+For now:
+
+* support user identity;
+* support protected backend routes;
+* associate projects with owners;
+* prevent users from accessing other users' projects.
+
+If authentication can be implemented reliably during this phase, implement basic email-based authentication.
+
+If implementing complete authentication would destabilize the foundation, create the correct architecture and a development-safe mechanism without pretending it is production authentication.
+
+Do not build social login unless straightforward.
+
+# 9. Design System
+
+Create the TakeKeeper visual design system.
+
+The application should feel like professional filmmaking software, not an AI chatbot.
+
+Default appearance:
+
+* dark;
+* near-black / charcoal background;
+* slightly lighter elevated surfaces;
+* warm white primary text;
+* neutral gray secondary text;
+* cinematic amber accent;
+* restrained green for success;
+* amber for warnings;
+* red for critical continuity issues;
+* cool blue for informational states.
+
+Avoid:
+
+* generic purple AI styling;
+* excessive gradients;
+* excessive rounded cards;
+* emoji as primary icons;
+* giant decorative elements;
+* generic SaaS dashboard appearance.
+
+Create reusable primitives for:
+
+* page/screen layouts;
+* typography;
+* buttons;
+* icon buttons;
+* cards/panels;
+* badges;
+* status pills;
+* forms;
+* inputs;
+* dialogs;
+* tabs;
+* navigation;
+* loading skeletons;
+* error states;
+* empty states.
+
+Production identifiers such as:
+
+`SC 12 • SHOT 3A • TAKE 04`
+
+should use a compact production-monitor aesthetic.
+
+# 10. Responsive Foundation
+
+The application must eventually support web and mobile-style layouts.
+
+For desktop/web, prepare:
+
+* sidebar navigation;
+* spacious content area;
+* responsive content widths.
+
+For compact/mobile layouts, prepare:
+
+* bottom navigation;
+* stacked content;
+* touch-friendly controls.
+
+Do not simply stretch a phone UI across desktop.
+
+# 11. Error Handling Foundation
+
+Create consistent application-level patterns for:
+
+* API errors;
+* database errors;
+* network failures;
+* invalid data;
+* unauthorized access;
+* missing resources;
+* loading states.
+
+No blank screens on errors.
+
+No silent failures.
+
+# 12. Internal Analytics Architecture
+
+Create an internal analytics/event service without integrating an external analytics provider.
+
+Prepare event names such as:
+
+* onboarding_started
+* project_created
+* script_imported
+* scene_created
+* reference_captured
+* continuity_check_started
+* continuity_check_completed
+* issue_detected
+* issue_fixed
+* issue_marked_intentional
+* take_circled
+* report_generated
+
+Events can initially be logged internally.
+
+# 13. Seed Data
+
+Prepare a development/demo seed mechanism for the project:
+
+**The Last Cup**
+
+Scene:
+
+**INT. KITCHEN — NIGHT**
+
+Character:
+
+* Maya
+
+Continuity:
+
+* red jacket unzipped
+* white mug on Maya's right
+* black phone face-down beside mug
+* keys behind phone
+
+Do NOT hardcode fake AI comparison results.
+
+Only seed project/domain data.
+
+# 14. README Foundation
+
+Create or update the README with:
+
+* TakeKeeper overview;
+* product problem;
+* technology stack;
+* project architecture;
+* database architecture;
+* Google AI architecture;
+* Replit architecture;
+* setup instructions;
+* environment variables;
+* local/replit development instructions;
+* deployment notes;
+* current implementation status;
+* planned phases.
+
+Keep the repository capable of being made public.
+
+Do not include secrets.
+
+# Phase 1 Acceptance Criteria
+
+Do not consider Phase 1 complete until:
+
+1. the application starts successfully;
+2. the web app loads without runtime errors;
+3. TypeScript passes;
+4. lint/build checks pass;
+5. PostgreSQL is connected;
+6. migrations run successfully;
+7. core database tables exist;
+8. media storage service architecture exists;
+9. environment validation works;
+10. the design system is implemented;
+11. responsive layout primitives exist;
+12. Google AI/ADK service architecture exists;
+13. tool interfaces for future agents exist;
+14. seeded development data can be created;
+15. README explains how the architecture works;
+16. there are no fake AI responses;
+17. there are no hardcoded secrets;
+18. there are no dead foundational routes.
+
+# Important
+
+Do NOT begin building the complete continuity comparison experience yet.
+
+Do NOT implement RevenueCat.
+
+Do NOT implement OneSignal.
+
+Do NOT spend time on mobile-native polish.
+
+Do NOT add unrelated filmmaking functionality such as scheduling, casting, budgeting, screenplay writing, storyboards, or editing.
+
+Finish the foundation cleanly first.
+
+At the end, provide:
+
+1. a concise summary of what you implemented;
+2. the final folder architecture;
+3. database tables created;
+4. environment variables required;
+5. any Replit-specific setup performed;
+6. Google Cloud/ADK preparation completed;
+7. any known issues;
+8. confirmation that the Phase 1 acceptance criteria pass.
