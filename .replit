@@ -27,3 +27,6 @@ channel = "stable-25_05"
 [userenv.shared]
 GEMINI_MODEL = "gemini-2.5-flash"
 GOOGLE_CLOUD_LOCATION = "us-central1"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-1f83a287-7326-4871-855e-fa53adb8d1bf"
