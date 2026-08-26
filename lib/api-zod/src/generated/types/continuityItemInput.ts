@@ -6,14 +6,12 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface SceneInput {
+export interface ContinuityItemInput {
+  category: string;
   /** @minLength 1 */
-  sceneNumber: string;
+  entity: string;
   /** @minLength 1 */
-  slugline: string;
-  location?: string;
-  intExt?: string;
-  timeOfDay?: string;
-  storyDay?: string;
-  scriptText?: string;
+  expectedState: string;
+  sourceType?: string;
+  confidence?: number;
 }

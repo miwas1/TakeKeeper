@@ -6,14 +6,15 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface ActivityEvent {
+export interface Shot {
   id: string;
-  agent: string;
-  action: string;
+  sceneId: string;
+  label: string;
+  /** @nullable */
+  description: string | null;
   status: string;
+  takeCount: number;
+  issueCount: number;
   /** @nullable */
-  latencyMs?: number | null;
-  createdAt: Date;
-  /** @nullable */
-  projectTitle: string | null;
+  referenceTakeId: string | null;
 }

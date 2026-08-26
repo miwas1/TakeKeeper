@@ -6,8 +6,12 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface ProjectInput {
+export interface UploadRequest {
+  projectId: string;
+  sceneId?: string;
   /** @minLength 1 */
-  title: string;
-  type?: string;
+  fileName: string;
+  /** @minLength 1 */
+  contentType: string;
+  size: number;
 }

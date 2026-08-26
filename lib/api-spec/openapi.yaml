@@ -1,21 +1,21 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: TakeKeeper foundation API
+  version: 0.2.0
+  description: TakeKeeper production workflow API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
   - name: dashboard
-    description: Project overview and activity
   - name: projects
-    description: Film projects
   - name: scenes
-    description: Script scenes and continuity setup
+  - name: shots
+  - name: takes
+  - name: continuity
+  - name: media
+  - name: reports
 paths:
   /healthz:
     get:
@@ -45,12 +45,12 @@ paths:
     get:
       operationId: listActivity
       tags: [dashboard]
-      summary: List recent agent and production activity
+      summary: List persisted production activity
       parameters:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: Recent activity
+          description: Activity
           content:
             application/json:
               schema:
@@ -61,7 +61,7 @@ paths:
     get:
       operationId: listProjects
       tags: [projects]
-      summary: List projects visible to the current user
+      summary: List projects
       responses:
         "200":
           description: Projects
@@ -74,7 +74,7 @@ paths:
     post:
       operationId: createProject
       tags: [projects]
-      summary: Create a film project
+      summary: Create a project
       requestBody:
         required: true
         content:
@@ -94,7 +94,7 @@ paths:
     get:
       operationId: getProject
       tags: [projects]
-      summary: Get one project with its scenes
+      summary: Get a project with its scenes
       parameters:
         - $ref: "#/components/parameters/ProjectId"
       responses:
@@ -104,6 +104,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete a project and its media
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "204":
+          description: Deleted
         "404":
           $ref: "#/components/responses/NotFound"
   /projects/{projectId}/scenes:
@@ -122,12 +154,10 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Scene"
-        "404":
-          $ref: "#/components/responses/NotFound"
     post:
       operationId: createScene
       tags: [scenes]
-      summary: Add a scene to a project
+      summary: Create a scene
       parameters:
         - $ref: "#/components/parameters/ProjectId"
       requestBody:
@@ -143,18 +173,337 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Scene"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "404":
-          $ref: "#/components/responses/NotFound"
+  /scenes/{sceneId}:
+    get:
+      operationId: getScene
+      tags: [scenes]
+      summary: Get a scene workspace
+      parameters:
+        - $ref: "#/components/parameters/SceneId"
+      responses:
+        "200":
+          description: Scene workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SceneWorkspace"
+    patch:
+      operationId: updateScene
+      tags: [scenes]
+      summary: Update a scene
+      parameters:
+        - $ref: "#/components/parameters/SceneId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SceneUpdate"
+      responses:
+        "200":
+          description: Updated scene
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scene"
+  /scenes/{sceneId}/shots:
+    get:
+      operationId: listShots
+      tags: [shots]
+      summary: List shots in a scene
+      parameters:
+        - $ref: "#/components/parameters/SceneId"
+      responses:
+        "200":
+          description: Shots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Shot"
+    post:
+      operationId: createShot
+      tags: [shots]
+      summary: Create a shot
+      parameters:
+        - $ref: "#/components/parameters/SceneId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShotInput"
+      responses:
+        "201":
+          description: Created shot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shot"
+  /shots/{shotId}:
+    get:
+      operationId: getShot
+      tags: [shots]
+      summary: Get a shot with takes and reference
+      parameters:
+        - $ref: "#/components/parameters/ShotId"
+      responses:
+        "200":
+          description: Shot workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShotWorkspace"
+    patch:
+      operationId: updateShot
+      tags: [shots]
+      summary: Update a shot
+      parameters:
+        - $ref: "#/components/parameters/ShotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShotUpdate"
+      responses:
+        "200":
+          description: Updated shot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shot"
+    delete:
+      operationId: deleteShot
+      tags: [shots]
+      summary: Delete a shot
+      parameters:
+        - $ref: "#/components/parameters/ShotId"
+      responses:
+        "204":
+          description: Deleted
+  /shots/{shotId}/takes:
+    get:
+      operationId: listTakes
+      tags: [takes]
+      summary: List takes for a shot
+      parameters:
+        - $ref: "#/components/parameters/ShotId"
+      responses:
+        "200":
+          description: Takes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Take"
+    post:
+      operationId: createTake
+      tags: [takes]
+      summary: Create a take
+      parameters:
+        - $ref: "#/components/parameters/ShotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TakeInput"
+      responses:
+        "201":
+          description: Created take
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Take"
+  /takes/{takeId}:
+    patch:
+      operationId: updateTake
+      tags: [takes]
+      summary: Update take status, notes, or circle state
+      parameters:
+        - $ref: "#/components/parameters/TakeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TakeUpdate"
+      responses:
+        "200":
+          description: Updated take
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Take"
+  /scenes/{sceneId}/continuity:
+    get:
+      operationId: listContinuityItems
+      tags: [continuity]
+      summary: List continuity bible items
+      parameters:
+        - $ref: "#/components/parameters/SceneId"
+      responses:
+        "200":
+          description: Continuity items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContinuityItem"
+    post:
+      operationId: createContinuityItem
+      tags: [continuity]
+      summary: Add a manual continuity item
+      parameters:
+        - $ref: "#/components/parameters/SceneId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContinuityItemInput"
+      responses:
+        "201":
+          description: Created item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContinuityItem"
+  /continuity/{itemId}:
+    patch:
+      operationId: updateContinuityItem
+      tags: [continuity]
+      summary: Update a continuity item
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContinuityItemUpdate"
+      responses:
+        "200":
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContinuityItem"
+    delete:
+      operationId: deleteContinuityItem
+      tags: [continuity]
+      summary: Delete a continuity item
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+      responses:
+        "204":
+          description: Deleted
+  /continuity/{itemId}/changes:
+    post:
+      operationId: createContinuityChange
+      tags: [continuity]
+      summary: Apply an intentional continuity change
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContinuityChangeInput"
+      responses:
+        "201":
+          description: Applied state change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContinuityItem"
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [media]
+      summary: Request a direct media upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadRequest"
+      responses:
+        "200":
+          description: Upload target
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadTarget"
+  /media:
+    post:
+      operationId: registerMedia
+      tags: [media]
+      summary: Register uploaded media metadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaInput"
+      responses:
+        "201":
+          description: Registered media
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Media"
+  /reports/daily:
+    get:
+      operationId: getDailyReport
+      tags: [reports]
+      summary: Get the daily report shell
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdQuery"
+      responses:
+        "200":
+          description: Report readiness
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReport"
 components:
   parameters:
     ProjectId:
       name: projectId
       in: path
       required: true
-      schema:
-        type: string
+      schema: { type: string }
+    ProjectIdQuery:
+      name: projectId
+      in: query
+      required: true
+      schema: { type: string }
+    SceneId:
+      name: sceneId
+      in: path
+      required: true
+      schema: { type: string }
+    ShotId:
+      name: shotId
+      in: path
+      required: true
+      schema: { type: string }
+    TakeId:
+      name: takeId
+      in: path
+      required: true
+      schema: { type: string }
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema: { type: string }
     Limit:
       name: limit
       in: query
@@ -162,67 +511,55 @@ components:
       schema:
         type: number
         minimum: 1
-        maximum: 50
-        default: 10
+        maximum: 100
+        default: 25
   responses:
     BadRequest:
       description: Invalid request
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
     NotFound:
-      description: Resource not found
+      description: Not found
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
   schemas:
     HealthStatus:
       type: object
       properties:
-        status:
-          type: string
-        database:
-          type: string
+        status: { type: string }
+        database: { type: string }
       required: [status, database]
     ErrorResponse:
       type: object
       properties:
-        error:
-          type: string
-        code:
-          type: string
+        error: { type: string }
+        code: { type: string }
       required: [error]
     Project:
       type: object
       properties:
-        id:
-          type: string
-        title:
-          type: string
-        type:
-          type: string
-        status:
-          type: string
-        sceneCount:
-          type: number
-        activeIssueCount:
-          type: number
-        updatedAt:
-          type: string
-          format: date-time
+        id: { type: string }
+        title: { type: string }
+        type: { type: string }
+        status: { type: string }
+        sceneCount: { type: number }
+        activeIssueCount: { type: number }
+        updatedAt: { type: string, format: date-time }
       required: [id, title, type, status, sceneCount, activeIssueCount, updatedAt]
     ProjectInput:
       type: object
       properties:
-        title:
-          type: string
-          minLength: 1
-        type:
-          type: string
-          default: short_film
+        title: { type: string, minLength: 1 }
+        type: { type: string, default: short_film }
       required: [title]
+    ProjectUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1 }
+        type: { type: string }
+        status: { type: string }
     ProjectDetail:
       allOf:
         - $ref: "#/components/schemas/Project"
@@ -230,93 +567,230 @@ components:
           properties:
             scenes:
               type: array
-              items:
-                $ref: "#/components/schemas/Scene"
+              items: { $ref: "#/components/schemas/Scene" }
           required: [scenes]
     Scene:
       type: object
       properties:
-        id:
-          type: string
-        projectId:
-          type: string
-        sceneNumber:
-          type: string
-        slugline:
-          type: string
-        location:
-          type: string
-        intExt:
-          type: string
-        timeOfDay:
-          type: string
-        storyDay:
-          type: string
-        scriptText:
-          type: [string, "null"]
-        shotCount:
-          type: number
-        continuityCount:
-          type: number
-        sortOrder:
-          type: number
+        id: { type: string }
+        projectId: { type: string }
+        sceneNumber: { type: string }
+        slugline: { type: string }
+        location: { type: string }
+        intExt: { type: string }
+        timeOfDay: { type: string }
+        storyDay: { type: string }
+        scriptText: { type: [string, "null"] }
+        shotCount: { type: number }
+        continuityCount: { type: number }
+        sortOrder: { type: number }
       required: [id, projectId, sceneNumber, slugline, location, intExt, timeOfDay, storyDay, shotCount, continuityCount, sortOrder]
     SceneInput:
       type: object
       properties:
-        sceneNumber:
-          type: string
-          minLength: 1
-        slugline:
-          type: string
-          minLength: 1
-        location:
-          type: string
-        intExt:
-          type: string
-        timeOfDay:
-          type: string
-        storyDay:
-          type: string
-        scriptText:
-          type: string
+        sceneNumber: { type: string, minLength: 1 }
+        slugline: { type: string, minLength: 1 }
+        location: { type: string }
+        intExt: { type: string }
+        timeOfDay: { type: string }
+        storyDay: { type: string }
+        scriptText: { type: string }
       required: [sceneNumber, slugline]
-    Dashboard:
+    SceneUpdate:
       type: object
       properties:
-        activeProjectCount:
-          type: number
-        sceneCount:
-          type: number
-        openIssueCount:
-          type: number
-        circledTakeCount:
-          type: number
-        projects:
-          type: array
-          items:
-            $ref: "#/components/schemas/Project"
-        recentActivity:
-          type: array
-          items:
-            $ref: "#/components/schemas/ActivityEvent"
-      required: [activeProjectCount, sceneCount, openIssueCount, circledTakeCount, projects, recentActivity]
+        sceneNumber: { type: string, minLength: 1 }
+        slugline: { type: string, minLength: 1 }
+        location: { type: string }
+        intExt: { type: string }
+        timeOfDay: { type: string }
+        storyDay: { type: string }
+        scriptText: { type: string }
+    Shot:
+      type: object
+      properties:
+        id: { type: string }
+        sceneId: { type: string }
+        label: { type: string }
+        description: { type: [string, "null"] }
+        status: { type: string }
+        takeCount: { type: number }
+        issueCount: { type: number }
+        referenceTakeId: { type: [string, "null"] }
+      required: [id, sceneId, label, description, status, takeCount, issueCount, referenceTakeId]
+    ShotInput:
+      type: object
+      properties:
+        label: { type: string, minLength: 1 }
+        description: { type: string }
+      required: [label]
+    ShotUpdate:
+      type: object
+      properties:
+        label: { type: string, minLength: 1 }
+        description: { type: string }
+        status: { type: string }
+    Take:
+      type: object
+      properties:
+        id: { type: string }
+        shotId: { type: string }
+        takeNumber: { type: number }
+        status: { type: string }
+        notes: { type: [string, "null"] }
+        capturedAt: { type: string, format: date-time }
+        isReference: { type: boolean }
+        isCircle: { type: boolean }
+        issueCount: { type: number }
+        mediaUrl: { type: [string, "null"] }
+      required: [id, shotId, takeNumber, status, notes, capturedAt, isReference, isCircle, issueCount, mediaUrl]
+    TakeInput:
+      type: object
+      properties:
+        notes: { type: string }
+        isReference: { type: boolean }
+        mediaId: { type: string }
+      required: []
+    TakeUpdate:
+      type: object
+      properties:
+        status: { type: string }
+        notes: { type: string }
+        isReference: { type: boolean }
+        isCircle: { type: boolean }
+    ContinuityItem:
+      type: object
+      properties:
+        id: { type: string }
+        sceneId: { type: string }
+        category: { type: string }
+        entity: { type: string }
+        expectedState: { type: string }
+        sourceType: { type: string }
+        confidence: { type: [number, "null"] }
+        active: { type: boolean }
+        updatedAt: { type: string, format: date-time }
+      required: [id, sceneId, category, entity, expectedState, sourceType, confidence, active, updatedAt]
+    ContinuityItemInput:
+      type: object
+      properties:
+        category: { type: string }
+        entity: { type: string, minLength: 1 }
+        expectedState: { type: string, minLength: 1 }
+        sourceType: { type: string, default: manual }
+        confidence: { type: number }
+      required: [category, entity, expectedState]
+    ContinuityItemUpdate:
+      type: object
+      properties:
+        category: { type: string }
+        entity: { type: string, minLength: 1 }
+        expectedState: { type: string, minLength: 1 }
+        confidence: { type: number }
+        active: { type: boolean }
+    ContinuityChangeInput:
+      type: object
+      properties:
+        newState: { type: string, minLength: 1 }
+        effectiveScope: { type: string }
+        sourceTakeId: { type: string }
+      required: [newState, effectiveScope, sourceTakeId]
+    Media:
+      type: object
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        sceneId: { type: [string, "null"] }
+        takeId: { type: [string, "null"] }
+        storageKey: { type: string }
+        mediaType: { type: string }
+        mediaUrl: { type: string }
+        width: { type: [number, "null"] }
+        height: { type: [number, "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, projectId, sceneId, takeId, storageKey, mediaType, mediaUrl, width, height, createdAt]
+    UploadRequest:
+      type: object
+      properties:
+        projectId: { type: string }
+        sceneId: { type: string }
+        fileName: { type: string, minLength: 1 }
+        contentType: { type: string, minLength: 1 }
+        size: { type: number }
+      required: [projectId, fileName, contentType, size]
+    UploadTarget:
+      type: object
+      properties:
+        storageKey: { type: string }
+        uploadUrl: { type: string }
+      required: [storageKey, uploadUrl]
+    MediaInput:
+      type: object
+      properties:
+        projectId: { type: string }
+        sceneId: { type: string }
+        takeId: { type: string }
+        storageKey: { type: string }
+        mediaType: { type: string }
+        width: { type: number }
+        height: { type: number }
+      required: [projectId, storageKey, mediaType]
     ActivityEvent:
       type: object
       properties:
-        id:
-          type: string
-        agent:
-          type: string
-        action:
-          type: string
-        status:
-          type: string
-        latencyMs:
-          type: [number, "null"]
-        createdAt:
-          type: string
-          format: date-time
-        projectTitle:
-          type: [string, "null"]
+        id: { type: string }
+        agent: { type: string }
+        action: { type: string }
+        status: { type: string }
+        latencyMs: { type: [number, "null"] }
+        createdAt: { type: string, format: date-time }
+        projectTitle: { type: [string, "null"] }
       required: [id, agent, action, status, createdAt, projectTitle]
+    Dashboard:
+      type: object
+      properties:
+        activeProjectCount: { type: number }
+        sceneCount: { type: number }
+        openIssueCount: { type: number }
+        circledTakeCount: { type: number }
+        projects:
+          type: array
+          items: { $ref: "#/components/schemas/Project" }
+        recentActivity:
+          type: array
+          items: { $ref: "#/components/schemas/ActivityEvent" }
+      required: [activeProjectCount, sceneCount, openIssueCount, circledTakeCount, projects, recentActivity]
+    SceneWorkspace:
+      type: object
+      properties:
+        scene: { $ref: "#/components/schemas/Scene" }
+        continuity:
+          type: array
+          items: { $ref: "#/components/schemas/ContinuityItem" }
+        shots:
+          type: array
+          items: { $ref: "#/components/schemas/Shot" }
+      required: [scene, continuity, shots]
+    ShotWorkspace:
+      type: object
+      properties:
+        shot: { $ref: "#/components/schemas/Shot" }
+        scene: { $ref: "#/components/schemas/Scene" }
+        takes:
+          type: array
+          items: { $ref: "#/components/schemas/Take" }
+      required: [shot, scene, takes]
+    DailyReport:
+      type: object
+      properties:
+        available: { type: boolean }
+        message: { type: string }
+        project: { type: [string, "null"] }
+        shootDate: { type: [string, "null"] }
+        scenesWorked: { type: number }
+        shots: { type: number }
+        takeCount: { type: number }
+        circleTakes: { type: number }
+        issuesCaught: { type: number }
+        unresolvedWarnings: { type: number }
+      required: [available, message, project, shootDate, scenesWorked, shots, takeCount, circleTakes, issuesCaught, unresolvedWarnings]

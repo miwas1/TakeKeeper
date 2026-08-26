@@ -24,6 +24,7 @@ const formSchema = z.object({
 
 export default function ProjectsList() {
   const { data: projects, isLoading, error } = useListProjects();
+  const demoProject = projects?.find((project) => project.title === "The Last Cup");
   const createProject = useCreateProject();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -66,10 +67,11 @@ export default function ProjectsList() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-3 text-2xl font-bold tracking-tight sm:text-3xl">
-            <Film className="h-7 w-7 text-primary sm:h-8 sm:w-8" /> Projects
+          <div className="font-mono text-xs text-primary">TAKEKEEPER</div>
+          <h1 className="mt-1 flex items-center gap-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            <Film className="h-7 w-7 text-primary sm:h-8 sm:w-8" /> Your productions
           </h1>
-          <p className="text-muted-foreground text-sm font-mono mt-1">PRODUCTION DIRECTORY</p>
+          <p className="mt-1 text-sm text-muted-foreground">Visual continuity, kept between every setup and every take.</p>
         </div>
         
         <Dialog open={open} onOpenChange={setOpen}>
@@ -140,6 +142,20 @@ export default function ProjectsList() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {demoProject && (
+        <section className="relative overflow-hidden border border-primary/30 bg-card p-5 sm:p-6">
+          <div className="absolute inset-y-0 right-0 w-2/5 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.12),transparent_65%)]" />
+          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <Badge className="font-mono text-[10px]">DEMO PRODUCTION</Badge>
+              <h2 className="mt-3 text-xl font-semibold">The Last Cup</h2>
+              <p className="mt-1 max-w-xl text-sm text-muted-foreground">Open Scene 12, review the continuity bible, then capture the approved setup for 1A Wide.</p>
+            </div>
+            <Link href={`/projects/${demoProject.id}`}><Button className="w-full sm:w-auto">Try the demo project</Button></Link>
+          </div>
+        </section>
+      )}
 
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

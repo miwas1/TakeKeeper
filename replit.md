@@ -41,7 +41,13 @@ TakeKeeper is a production-monitor workspace that helps film crews know what cha
 
 ## Product boundaries
 
-Phase 1 is the technical foundation. Do not add fake continuity comparisons, RevenueCat, OneSignal, production scheduling, casting, budgeting, screenplay writing, storyboards, or editing.
+Phase 2 is a working product shell. Projects, scenes, shots, takes, continuity items, intentional state changes, activity, and media metadata are real persisted records. Media bytes belong in App Storage and must never be written as base64 or blobs into PostgreSQL.
+
+Do not fabricate continuity observations, issues, confidence scores, comparisons, or "all clear" results. Results and reports remain explicit shells until Gemini/Agent Engine analysis is connected.
+
+The mobile-first production flow is Projects → Scene → Shot → Shoot. Desktop progressively enhances the same workflow and adds Reports navigation.
+
+Do not add RevenueCat, OneSignal, production scheduling, casting, budgeting, screenplay writing, storyboards, or editing.
 
 ## Gotchas
 

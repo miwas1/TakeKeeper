@@ -6,14 +6,17 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface ActivityEvent {
+export interface Take {
   id: string;
-  agent: string;
-  action: string;
+  shotId: string;
+  takeNumber: number;
   status: string;
   /** @nullable */
-  latencyMs?: number | null;
-  createdAt: Date;
+  notes: string | null;
+  capturedAt: Date;
+  isReference: boolean;
+  isCircle: boolean;
+  issueCount: number;
   /** @nullable */
-  projectTitle: string | null;
+  mediaUrl: string | null;
 }

@@ -5,9 +5,8 @@
  * TakeKeeper production workflow API
  * OpenAPI spec version: 0.2.0
  */
-import type { Project } from './project';
-import type { Scene } from './scene';
+import type { ProjectIdQueryParameter } from './projectIdQueryParameter';
 
-export type ProjectDetail = Project & {
-  scenes: Scene[];
+export type GetDailyReportParams = {
+projectId: ProjectIdQueryParameter;
 };

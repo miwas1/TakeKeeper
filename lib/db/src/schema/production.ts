@@ -8,7 +8,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { projectsTable } from "./core";
+import { projectsTable, usersTable } from "./core";
 
 export const scenesTable = pgTable(
   "scenes",
@@ -83,5 +83,25 @@ export const mediaTable = pgTable(
     index("media_project_idx").on(table.projectId),
     index("media_scene_idx").on(table.sceneId),
     index("media_take_idx").on(table.takeId),
+  ],
+);
+
+export const mediaUploadReservationsTable = pgTable(
+  "media_upload_reservations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id").notNull().references(() => projectsTable.id, { onDelete: "cascade" }),
+    sceneId: uuid("scene_id").references(() => scenesTable.id, { onDelete: "set null" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    storageKey: text("storage_key").notNull().unique(),
+    contentType: text("content_type").notNull(),
+    maxSize: integer("max_size").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("media_upload_reservation_owner_idx").on(table.userId, table.projectId),
+    index("media_upload_reservation_expiry_idx").on(table.expiresAt),
   ],
 );

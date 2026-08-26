@@ -6,8 +6,9 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface ProjectInput {
+export interface ProjectUpdate {
   /** @minLength 1 */
-  title: string;
+  title?: string;
   type?: string;
+  status?: string;
 }

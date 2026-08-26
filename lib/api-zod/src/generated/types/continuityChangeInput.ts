@@ -6,8 +6,9 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface ProjectInput {
+export interface ContinuityChangeInput {
   /** @minLength 1 */
-  title: string;
-  type?: string;
+  newState: string;
+  effectiveScope: string;
+  sourceTakeId: string;
 }

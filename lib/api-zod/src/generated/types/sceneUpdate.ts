@@ -6,11 +6,11 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface SceneInput {
+export interface SceneUpdate {
   /** @minLength 1 */
-  sceneNumber: string;
+  sceneNumber?: string;
   /** @minLength 1 */
-  slugline: string;
+  slugline?: string;
   location?: string;
   intExt?: string;
   timeOfDay?: string;

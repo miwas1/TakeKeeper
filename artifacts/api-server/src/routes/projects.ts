@@ -11,13 +11,16 @@ import {
   ListScenesParams,
   ListScenesResponse,
 } from "@workspace/api-zod";
-import { db, projectsTable, scenesTable } from "@workspace/db";
+import { db, mediaTable, mediaUploadReservationsTable, projectsTable, scenesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
 import {
   findOwnedProject,
   listOwnedProjects,
   listProjectScenes,
 } from "../services/repository";
 import { trackEvent } from "../services/analytics";
+import { mediaStorage } from "../services/storage";
 
 const router: IRouter = Router();
 
@@ -74,6 +77,59 @@ router.get("/projects/:projectId", async (req, res): Promise<void> => {
   );
   const scenes = await listProjectScenes(project.id);
   res.json(GetProjectResponse.parse({ ...summary, scenes }));
+});
+
+router.patch("/projects/:projectId", async (req, res): Promise<void> => {
+  const params = z.object({ projectId: z.string().uuid() }).safeParse(req.params);
+  const body = z.object({
+    title: z.string().min(1).max(120).optional(),
+    type: z.string().min(1).optional(),
+    status: z.enum(["active", "archived"]).optional(),
+  }).safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: "Invalid project update", code: "INVALID_PROJECT" });
+    return;
+  }
+  const project = await findOwnedProject(res.locals.userId as string, params.data.projectId);
+  if (!project) {
+    res.status(404).json({ error: "Project not found", code: "PROJECT_NOT_FOUND" });
+    return;
+  }
+  await db.update(projectsTable).set({ ...body.data, updatedAt: new Date() }).where(eq(projectsTable.id, project.id));
+  await trackEvent({
+    projectId: project.id,
+    name: body.data.status === "archived" ? "project_archived" : "project_updated",
+  });
+  const [updated] = (await listOwnedProjects(res.locals.userId as string)).filter((item) => item.id === project.id);
+  res.json(updated);
+});
+
+router.delete("/projects/:projectId", async (req, res): Promise<void> => {
+  const params = z.object({ projectId: z.string().uuid() }).safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid project id", code: "INVALID_PROJECT_ID" });
+    return;
+  }
+  const project = await findOwnedProject(res.locals.userId as string, params.data.projectId);
+  if (!project) {
+    res.status(404).json({ error: "Project not found", code: "PROJECT_NOT_FOUND" });
+    return;
+  }
+  const projectMedia = await db.select().from(mediaTable).where(eq(mediaTable.projectId, project.id));
+  const reservations = await db.select().from(mediaUploadReservationsTable).where(eq(mediaUploadReservationsTable.projectId, project.id));
+  const storageKeys = [...new Set([
+    ...projectMedia.map((media) => media.storageKey),
+    ...reservations.map((reservation) => reservation.storageKey),
+  ])];
+  try {
+    await Promise.all(storageKeys.map((storageKey) => mediaStorage.delete(storageKey)));
+  } catch (error) {
+    req.log.error({ error, projectId: project.id }, "Storage cleanup blocked project deletion");
+    res.status(503).json({ error: "Project media could not be removed. No records were deleted.", code: "STORAGE_DELETE_FAILED" });
+    return;
+  }
+  await db.delete(projectsTable).where(eq(projectsTable.id, project.id));
+  res.status(204).end();
 });
 
 router.get("/projects/:projectId/scenes", async (req, res): Promise<void> => {

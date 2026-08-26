@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Film, ShieldCheck, Activity, Settings } from "lucide-react";
+import { Film, Camera, Activity, FileText, Settings } from "lucide-react";
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -11,10 +11,10 @@ export function Shell({ children }: LayoutProps) {
   const [location] = useLocation();
 
   const navigation = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Projects", href: "/projects", icon: Film },
-    { name: "Continuity", href: "/continuity", icon: ShieldCheck },
+    { name: "Shoot", href: "/shoot", icon: Camera },
     { name: "Activity", href: "/activity", icon: Activity },
+    { name: "Reports", href: "/reports", icon: FileText, desktopOnly: true },
   ];
 
   return (
@@ -60,14 +60,14 @@ export function Shell({ children }: LayoutProps) {
             )}
           >
             <Settings className="w-4 h-4" />
-            Environment
+            Settings
           </Link>
         </div>
       </nav>
 
       {/* Mobile nav */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 min-h-16 border-t border-border bg-sidebar px-2 pt-2 pb-1 z-50 flex items-start justify-around safe-area-bottom">
-        {navigation.map((item) => {
+        {[...navigation.filter((item) => !item.desktopOnly), { name: "Settings", href: "/settings", icon: Settings }].map((item) => {
           const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
           return (
             <Link
@@ -76,9 +76,8 @@ export function Shell({ children }: LayoutProps) {
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 "flex min-w-[4.25rem] flex-col items-center gap-1 rounded-sm px-2 py-1.5 text-[10px] font-medium transition-colors",
-                isActive
-                  ? "text-primary"
-                  : "text-muted-foreground"
+                isActive ? "text-primary" : "text-muted-foreground",
+                item.name === "Shoot" && "relative -mt-5 rounded-full border border-primary/40 bg-sidebar px-4 py-2 shadow-[0_0_20px_rgba(245,158,11,0.12)]"
               )}
             >
               <item.icon className="h-5 w-5" />

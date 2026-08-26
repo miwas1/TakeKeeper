@@ -4,8 +4,11 @@ import {
   useGetProject, 
   useListScenes, 
   useCreateScene, 
+  useUpdateProject,
+  useDeleteProject,
   getGetProjectQueryKey,
-  getListScenesQueryKey 
+  getListScenesQueryKey,
+  getListProjectsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,7 +26,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Film, Plus, AlertCircle, MapPin, Camera, Video, Clock } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 const sceneFormSchema = z.object({
@@ -32,6 +37,7 @@ const sceneFormSchema = z.object({
   intExt: z.string().optional(),
   timeOfDay: z.string().optional(),
   storyDay: z.string().optional(),
+  scriptText: z.string().optional(),
 });
 
 export default function ProjectDetail() {
@@ -40,7 +46,10 @@ export default function ProjectDetail() {
   const { data: scenes, isLoading: scenesLoading } = useListScenes(projectId || "");
   
   const createScene = useCreateScene();
+  const updateProject = useUpdateProject();
+  const deleteProject = useDeleteProject();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
@@ -53,6 +62,7 @@ export default function ProjectDetail() {
       intExt: "INT",
       timeOfDay: "DAY",
       storyDay: "D1",
+      scriptText: "",
     },
   });
 
@@ -81,6 +91,28 @@ export default function ProjectDetail() {
         },
       }
     );
+  }
+
+  function archiveProject() {
+    if (!projectId) return;
+    updateProject.mutate({ projectId, data: { status: "archived" } }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
+        queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+        toast({ title: "Project archived" });
+      },
+    });
+  }
+
+  function removeProject() {
+    if (!projectId) return;
+    deleteProject.mutate({ projectId }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+        navigate("/projects");
+        toast({ title: "Project deleted", description: "Project records and linked media metadata were removed." });
+      },
+    });
   }
 
   if (projectError) {
@@ -128,6 +160,15 @@ export default function ProjectDetail() {
           )}
         </div>
 
+        <div className="flex flex-col gap-2 sm:flex-row">
+        <Button variant="outline" className="w-full font-mono text-xs sm:w-auto" onClick={archiveProject} disabled={projectLoading || project?.status === "archived"}>Archive</Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild><Button variant="destructive" className="w-full font-mono text-xs sm:w-auto">Delete</Button></AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader><AlertDialogTitle>Delete this project?</AlertDialogTitle><AlertDialogDescription>This permanently removes scenes, shots, takes, continuity records, and linked media metadata. This cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={removeProject} className="bg-destructive text-destructive-foreground">Delete Project</AlertDialogAction></AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button className="w-full shrink-0 font-mono text-xs uppercase tracking-wider sm:w-auto" disabled={projectLoading}>
@@ -181,6 +222,20 @@ export default function ProjectDetail() {
                     )}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="scriptText"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Scene Script</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder={"MAYA enters carrying two coffees..."} {...field} className="min-h-32 font-mono" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 
                 <FormField
                   control={form.control}
@@ -249,6 +304,7 @@ export default function ProjectDetail() {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Stats summary */}
@@ -318,9 +374,9 @@ export default function ProjectDetail() {
                     <TableCell className="font-mono font-bold">{scene.sceneNumber}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">{scene.intExt}</TableCell>
                     <TableCell>
-                      <span className="font-mono font-medium group-hover:text-primary transition-colors">
+                      <Link href={`/scenes/${scene.id}`} className="font-mono font-medium group-hover:text-primary transition-colors">
                         {scene.slugline}
-                      </span>
+                      </Link>
                       {scene.location && (
                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
                           <MapPin className="w-3 h-3" /> {scene.location}

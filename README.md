@@ -2,11 +2,11 @@
 
 **Know what changed before you roll again.**
 
-TakeKeeper is an agentic visual continuity supervisor for film crews. It is being built for the Replit track of the Agentic Cinema Hackathon. The current build is the production foundation: projects, scenes, continuity state, typed contracts, persistent storage, media-storage boundaries, and a Google-only agent architecture.
+TakeKeeper is an agentic visual continuity supervisor for film crews. It is being built for the Replit track of the Agentic Cinema Hackathon. The current build is the Phase 2 product shell: projects, scenes, shots, takes, manual continuity state, direct media uploads, activity, report scaffolding, and a Google-only agent architecture.
 
 The visual comparison workflow is intentionally not implemented yet. There are no fake AI results.
 
-## What Phase 1 includes
+## What the current build includes
 
 - Responsive React web application with desktop and compact navigation
 - TypeScript throughout the web, API, database, and shared domain contracts
@@ -18,6 +18,15 @@ The visual comparison workflow is intentionally not implemented yet. There are n
 - Application-tool contracts that keep model output away from direct database writes
 - Internal analytics events stored in PostgreSQL
 - Idempotent demo seed for **The Last Cup**
+- Project archive and deletion
+- Scene workspaces with screenplay text, continuity editing, and shot planning
+- Reference setup and new-take capture backed by Replit App Storage
+- Take status controls including Circle Take
+- Honest results and daily-report shells with AI generation explicitly deferred
+
+The main production path is:
+
+`Projects → Scene → Shot → Shoot → Reference / New Take → Results shell`
 
 ## Stack
 
@@ -37,11 +46,11 @@ No OpenAI, Anthropic, Claude, OpenRouter, LangChain, or non-Google model integra
 artifacts/
   takekeeper/                 React web application
     src/components/           reusable UI and production shell
-    src/pages/                dashboard, projects, project detail, continuity, activity, settings
+    src/pages/                projects, scenes, shots, shoot, activity, reports, settings
   api-server/                 Express API
     src/config/               validated server environment
     src/middlewares/          identity boundary
-    src/routes/               health, dashboard, project and scene routes
+    src/routes/               health, production CRUD, media upload, activity, reports
     src/services/             repositories, analytics, storage, Google AI
     src/tools/                validated application-tool contracts
 lib/
@@ -91,13 +100,15 @@ Every agent output has a shared Zod schema. The model cannot mutate the database
 
 Development uses one fixed, clearly identified demo crew user so local work remains deterministic. It does not accept arbitrary identity headers or pretend to be production authentication. In production, protected routes fail closed until the production identity adapter is configured. Projects are filtered by `owner_id` on every route.
 
-The intended production integration is Replit-managed Clerk. It is deliberately not enabled in this phase because media capture and user onboarding are not yet part of the requested workflow.
+The intended production integration is Replit-managed Clerk. It remains deliberately disabled until production authentication is configured; production requests fail closed.
 
 ## App Storage
 
-Replit App Storage is provisioned. The server defines a media storage contract for:
+Replit App Storage is provisioned. The server now supports:
 
-- upload target creation
+- protected upload target creation
+- direct browser-to-storage image upload
+- protected media delivery through short-lived signed URLs
 - retrieval URLs
 - deletion
 - metadata

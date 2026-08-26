@@ -6,8 +6,9 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface ProjectInput {
+export interface ShotUpdate {
   /** @minLength 1 */
-  title: string;
-  type?: string;
+  label?: string;
+  description?: string;
+  status?: string;
 }

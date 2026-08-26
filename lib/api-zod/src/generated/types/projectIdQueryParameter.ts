@@ -6,8 +6,4 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface ProjectInput {
-  /** @minLength 1 */
-  title: string;
-  type?: string;
-}
+export type ProjectIdQueryParameter = string;

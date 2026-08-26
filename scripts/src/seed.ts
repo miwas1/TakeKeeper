@@ -7,6 +7,7 @@ import {
   projectMembersTable,
   projectsTable,
   scenesTable,
+  shotsTable,
   usersTable,
 } from "@workspace/db";
 
@@ -62,6 +63,21 @@ if (!scene) {
       sortOrder: 0,
     })
     .returning();
+}
+
+const [existingShot] = await db
+  .select({ id: shotsTable.id })
+  .from(shotsTable)
+  .where(and(eq(shotsTable.sceneId, scene.id), eq(shotsTable.label, "1A Wide")))
+  .limit(1);
+
+if (!existingShot) {
+  await db.insert(shotsTable).values({
+    sceneId: scene.id,
+    label: "1A Wide",
+    description: "Wide master covering Maya at the kitchen counter.",
+    status: "planned",
+  });
 }
 
 const continuity = [

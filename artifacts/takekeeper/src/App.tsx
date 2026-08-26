@@ -7,12 +7,16 @@ import NotFound from '@/pages/not-found';
 import { Shell } from '@/components/layout/Shell';
 
 // Pages
-import Dashboard from '@/pages/Dashboard';
 import ProjectsList from '@/pages/ProjectsList';
 import ProjectDetail from '@/pages/ProjectDetail';
-import Continuity from '@/pages/Continuity';
 import ActivityList from '@/pages/ActivityList';
 import Settings from '@/pages/Settings';
+import SceneWorkspace from '@/pages/SceneWorkspace';
+import ShotWorkspace from '@/pages/ShotWorkspace';
+import Shoot from '@/pages/Shoot';
+import ShootLauncher from '@/pages/ShootLauncher';
+import Results from '@/pages/Results';
+import Reports from '@/pages/Reports';
 
 import {
   Route,
@@ -28,11 +32,16 @@ function Router() {
     <Shell>
       <RoutedErrorBoundary>
         <Switch>
-          <Route path="/" component={Dashboard} />
+          <Route path="/" component={ProjectsList} />
           <Route path="/projects" component={ProjectsList} />
           <Route path="/projects/:projectId" component={ProjectDetail} />
-          <Route path="/continuity" component={Continuity} />
+          <Route path="/scenes/:sceneId" component={SceneWorkspace} />
+          <Route path="/shots/:shotId/results" component={Results} />
+          <Route path="/shots/:shotId" component={ShotWorkspace} />
+          <Route path="/shoot/:shotId" component={Shoot} />
+          <Route path="/shoot" component={ShootLauncher} />
           <Route path="/activity" component={ActivityList} />
+          <Route path="/reports" component={Reports} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>
