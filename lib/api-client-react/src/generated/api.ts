@@ -42,6 +42,10 @@ import type {
   SceneInput,
   SceneUpdate,
   SceneWorkspace,
+  ScreenplayApprovalInput,
+  ScreenplayImport,
+  ScreenplayImportInput,
+  ScreenplayImportUpdate,
   Shot,
   ShotInput,
   ShotUpdate,
@@ -2163,4 +2167,368 @@ export function useGetDailyReport<TData = Awaited<ReturnType<typeof getDailyRepo
 
 
 
+
+export const getGetScreenplayImportUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/screenplay-import`
+}
+
+/**
+ * @summary Get the latest screenplay import
+ */
+export const getScreenplayImport = async (projectId: string, options?: Parameters<typeof customFetch>[1]): Promise<ScreenplayImport> => {
+
+  return customFetch<ScreenplayImport>(getGetScreenplayImportUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetScreenplayImportQueryKey = (projectId: string,) => {
+    return [
+    `/api/projects/${projectId}/screenplay-import`
+    ] as const;
+    }
+
+
+export const getGetScreenplayImportQueryOptions = <TData = Awaited<ReturnType<typeof getScreenplayImport>>, TError = ErrorType<NotFoundResponse>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getScreenplayImport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetScreenplayImportQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getScreenplayImport>>> = ({ signal }) => getScreenplayImport(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getScreenplayImport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetScreenplayImportQueryResult = NonNullable<Awaited<ReturnType<typeof getScreenplayImport>>>
+export type GetScreenplayImportQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Get the latest screenplay import
+ */
+
+export function useGetScreenplayImport<TData = Awaited<ReturnType<typeof getScreenplayImport>>, TError = ErrorType<NotFoundResponse>>(
+ projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getScreenplayImport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetScreenplayImportQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateScreenplayImportUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/screenplay-import`
+}
+
+/**
+ * @summary Save and analyze screenplay text
+ */
+export const createScreenplayImport = async (projectId: string,
+    screenplayImportInput: ScreenplayImportInput, options?: Parameters<typeof customFetch>[1]): Promise<ScreenplayImport> => {
+
+  return customFetch<ScreenplayImport>(getCreateScreenplayImportUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(screenplayImportInput)
+  }
+);}
+
+
+
+
+
+export const getCreateScreenplayImportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createScreenplayImport>>, TError,{projectId: string;data: BodyType<ScreenplayImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createScreenplayImport>>, TError,{projectId: string;data: BodyType<ScreenplayImportInput>}, TContext> => {
+
+const mutationKey = ['createScreenplayImport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createScreenplayImport>>, {projectId: string;data: BodyType<ScreenplayImportInput>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  createScreenplayImport(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateScreenplayImportMutationResult = NonNullable<Awaited<ReturnType<typeof createScreenplayImport>>>
+    export type CreateScreenplayImportMutationBody = BodyType<ScreenplayImportInput>
+    export type CreateScreenplayImportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save and analyze screenplay text
+ */
+export const useCreateScreenplayImport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createScreenplayImport>>, TError,{projectId: string;data: BodyType<ScreenplayImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createScreenplayImport>>,
+        TError,
+        {projectId: string;data: BodyType<ScreenplayImportInput>},
+        TContext
+      > => {
+      return useMutation(getCreateScreenplayImportMutationOptions(options));
+    }
+
+export const getUpdateScreenplayImportUrl = (importId: string,) => {
+
+
+
+
+  return `/api/screenplay-imports/${importId}`
+}
+
+/**
+ * @summary Save screenplay review edits
+ */
+export const updateScreenplayImport = async (importId: string,
+    screenplayImportUpdate: ScreenplayImportUpdate, options?: Parameters<typeof customFetch>[1]): Promise<ScreenplayImport> => {
+
+  return customFetch<ScreenplayImport>(getUpdateScreenplayImportUrl(importId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(screenplayImportUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateScreenplayImportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateScreenplayImport>>, TError,{importId: string;data: BodyType<ScreenplayImportUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateScreenplayImport>>, TError,{importId: string;data: BodyType<ScreenplayImportUpdate>}, TContext> => {
+
+const mutationKey = ['updateScreenplayImport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateScreenplayImport>>, {importId: string;data: BodyType<ScreenplayImportUpdate>}> = (props) => {
+          const {importId,data} = props ?? {};
+
+          return  updateScreenplayImport(importId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateScreenplayImportMutationResult = NonNullable<Awaited<ReturnType<typeof updateScreenplayImport>>>
+    export type UpdateScreenplayImportMutationBody = BodyType<ScreenplayImportUpdate>
+    export type UpdateScreenplayImportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save screenplay review edits
+ */
+export const useUpdateScreenplayImport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateScreenplayImport>>, TError,{importId: string;data: BodyType<ScreenplayImportUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateScreenplayImport>>,
+        TError,
+        {importId: string;data: BodyType<ScreenplayImportUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateScreenplayImportMutationOptions(options));
+    }
+
+export const getApproveScreenplayImportUrl = (importId: string,) => {
+
+
+
+
+  return `/api/screenplay-imports/${importId}`
+}
+
+/**
+ * @summary Approve screenplay scenes and continuity items
+ */
+export const approveScreenplayImport = async (importId: string,
+    screenplayApprovalInput: ScreenplayApprovalInput, options?: Parameters<typeof customFetch>[1]): Promise<ScreenplayImport> => {
+
+  return customFetch<ScreenplayImport>(getApproveScreenplayImportUrl(importId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(screenplayApprovalInput)
+  }
+);}
+
+
+
+
+
+export const getApproveScreenplayImportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveScreenplayImport>>, TError,{importId: string;data: BodyType<ScreenplayApprovalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveScreenplayImport>>, TError,{importId: string;data: BodyType<ScreenplayApprovalInput>}, TContext> => {
+
+const mutationKey = ['approveScreenplayImport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveScreenplayImport>>, {importId: string;data: BodyType<ScreenplayApprovalInput>}> = (props) => {
+          const {importId,data} = props ?? {};
+
+          return  approveScreenplayImport(importId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveScreenplayImportMutationResult = NonNullable<Awaited<ReturnType<typeof approveScreenplayImport>>>
+    export type ApproveScreenplayImportMutationBody = BodyType<ScreenplayApprovalInput>
+    export type ApproveScreenplayImportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Approve screenplay scenes and continuity items
+ */
+export const useApproveScreenplayImport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveScreenplayImport>>, TError,{importId: string;data: BodyType<ScreenplayApprovalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveScreenplayImport>>,
+        TError,
+        {importId: string;data: BodyType<ScreenplayApprovalInput>},
+        TContext
+      > => {
+      return useMutation(getApproveScreenplayImportMutationOptions(options));
+    }
+
+export const getRetryScreenplayImportUrl = (importId: string,) => {
+
+
+
+
+  return `/api/screenplay-imports/${importId}/retry`
+}
+
+/**
+ * @summary Retry the latest screenplay analysis
+ */
+export const retryScreenplayImport = async (importId: string, options?: Parameters<typeof customFetch>[1]): Promise<ScreenplayImport> => {
+
+  return customFetch<ScreenplayImport>(getRetryScreenplayImportUrl(importId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryScreenplayImportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryScreenplayImport>>, TError,{importId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryScreenplayImport>>, TError,{importId: string}, TContext> => {
+
+const mutationKey = ['retryScreenplayImport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryScreenplayImport>>, {importId: string}> = (props) => {
+          const {importId} = props ?? {};
+
+          return  retryScreenplayImport(importId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryScreenplayImportMutationResult = NonNullable<Awaited<ReturnType<typeof retryScreenplayImport>>>
+
+    export type RetryScreenplayImportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Retry the latest screenplay analysis
+ */
+export const useRetryScreenplayImport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryScreenplayImport>>, TError,{importId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryScreenplayImport>>,
+        TError,
+        {importId: string},
+        TContext
+      > => {
+      return useMutation(getRetryScreenplayImportMutationOptions(options));
+    }
 

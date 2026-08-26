@@ -17,6 +17,7 @@ import Shoot from '@/pages/Shoot';
 import ShootLauncher from '@/pages/ShootLauncher';
 import Results from '@/pages/Results';
 import Reports from '@/pages/Reports';
+import ScreenplayImport from '@/pages/ScreenplayImport';
 
 import {
   Route,
@@ -34,6 +35,7 @@ function Router() {
         <Switch>
           <Route path="/" component={ProjectsList} />
           <Route path="/projects" component={ProjectsList} />
+          <Route path="/projects/:projectId/screenplay" component={ScreenplayImport} />
           <Route path="/projects/:projectId" component={ProjectDetail} />
           <Route path="/scenes/:sceneId" component={SceneWorkspace} />
           <Route path="/shots/:shotId/results" component={Results} />

@@ -21,6 +21,7 @@ export const continuityItemsTable = pgTable(
     expectedState: text("expected_state").notNull(),
     sourceType: text("source_type").notNull(),
     confidence: numeric("confidence", { precision: 5, scale: 4 }),
+    sourceEvidence: text("source_evidence"),
     active: boolean("active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

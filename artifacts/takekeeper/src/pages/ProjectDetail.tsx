@@ -25,7 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Film, Plus, AlertCircle, MapPin, Camera, Video, Clock } from "lucide-react";
+import { Film, Plus, AlertCircle, MapPin, Camera, Video, Clock, FileText } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
@@ -169,6 +169,11 @@ export default function ProjectDetail() {
             <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={removeProject} className="bg-destructive text-destructive-foreground">Delete Project</AlertDialogAction></AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        <Link href={`/projects/${projectId}/screenplay`}>
+          <Button variant="outline" className="w-full shrink-0 font-mono text-xs uppercase tracking-wider sm:w-auto border-primary/50 text-primary hover:bg-primary/10" disabled={projectLoading}>
+            <FileText className="w-4 h-4 mr-2" /> Breakdown
+          </Button>
+        </Link>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button className="w-full shrink-0 font-mono text-xs uppercase tracking-wider sm:w-auto" disabled={projectLoading}>

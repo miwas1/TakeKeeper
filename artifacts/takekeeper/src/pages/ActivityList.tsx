@@ -69,9 +69,9 @@ export default function ActivityList() {
 
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     <Badge variant={
-                      event.status === 'success' ? 'success' :
-                      event.status === 'error' ? 'destructive' :
-                      event.status === 'running' ? 'info' : 'outline'
+                      event.status === 'completed' ? 'success' :
+                      event.status === 'failed' ? 'destructive' :
+                      event.status === 'started' ? 'info' : 'outline'
                     } className="text-[10px]">
                       {event.status.toUpperCase()}
                     </Badge>

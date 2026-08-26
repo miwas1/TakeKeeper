@@ -16,6 +16,7 @@ tags:
   - name: continuity
   - name: media
   - name: reports
+  - name: screenplay
 paths:
   /healthz:
     get:
@@ -472,6 +473,94 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DailyReport"
+  /projects/{projectId}/screenplay-import:
+    get:
+      operationId: getScreenplayImport
+      tags: [screenplay]
+      summary: Get the latest screenplay import
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Latest screenplay import
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScreenplayImport"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createScreenplayImport
+      tags: [screenplay]
+      summary: Save and analyze screenplay text
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScreenplayImportInput"
+      responses:
+        "202":
+          description: Screenplay saved and analysis started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScreenplayImport"
+  /screenplay-imports/{importId}:
+    patch:
+      operationId: updateScreenplayImport
+      tags: [screenplay]
+      summary: Save screenplay review edits
+      parameters:
+        - $ref: "#/components/parameters/ImportId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScreenplayImportUpdate"
+      responses:
+        "200":
+          description: Updated screenplay import
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScreenplayImport"
+    post:
+      operationId: approveScreenplayImport
+      tags: [screenplay]
+      summary: Approve screenplay scenes and continuity items
+      parameters:
+        - $ref: "#/components/parameters/ImportId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScreenplayApprovalInput"
+      responses:
+        "200":
+          description: Approved screenplay import
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScreenplayImport"
+  /screenplay-imports/{importId}/retry:
+    post:
+      operationId: retryScreenplayImport
+      tags: [screenplay]
+      summary: Retry the latest screenplay analysis
+      parameters:
+        - $ref: "#/components/parameters/ImportId"
+      responses:
+        "202":
+          description: Analysis restarted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScreenplayImport"
 components:
   parameters:
     ProjectId:
@@ -501,6 +590,11 @@ components:
       schema: { type: string }
     ItemId:
       name: itemId
+      in: path
+      required: true
+      schema: { type: string }
+    ImportId:
+      name: importId
       in: path
       required: true
       schema: { type: string }
@@ -794,3 +888,74 @@ components:
         issuesCaught: { type: number }
         unresolvedWarnings: { type: number }
       required: [available, message, project, shootDate, scenesWorked, shots, takeCount, circleTakes, issuesCaught, unresolvedWarnings]
+    ScreenplayImportInput:
+      type: object
+      properties:
+        sourceType: { type: string, enum: [paste, txt] }
+        fileName: { type: [string, "null"] }
+        content: { type: string, minLength: 40 }
+      required: [sourceType, content]
+    ScreenplayImportUpdate:
+      type: object
+      properties:
+        analysis: { $ref: "#/components/schemas/ScreenplayBreakdown" }
+      required: [analysis]
+    ScreenplayApprovalInput:
+      type: object
+      properties:
+        analysis: { $ref: "#/components/schemas/ScreenplayBreakdown" }
+      required: [analysis]
+    ScreenplayImport:
+      type: object
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        sourceType: { type: string, enum: [paste, txt] }
+        fileName: { type: [string, "null"] }
+        content: { type: string }
+        status: { type: string, enum: [analyzing, review, approved, failed] }
+        errorMessage: { type: [string, "null"] }
+        model: { type: [string, "null"] }
+        analysis:
+          oneOf:
+            - $ref: "#/components/schemas/ScreenplayBreakdown"
+            - type: "null"
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, projectId, sourceType, fileName, content, status, errorMessage, model, analysis, createdAt, updatedAt]
+    ScreenplayBreakdown:
+      type: object
+      properties:
+        scenes:
+          type: array
+          items: { $ref: "#/components/schemas/ScreenplayScene" }
+      required: [scenes]
+    ScreenplayScene:
+      type: object
+      properties:
+        id: { type: [string, "null"] }
+        sceneNumber: { type: string }
+        slugline: { type: string }
+        location: { type: string }
+        intExt: { type: string, enum: [INT, EXT, INT/EXT, ""] }
+        timeOfDay: { type: string }
+        storyDay: { type: string }
+        scriptText: { type: [string, "null"] }
+        characters:
+          type: array
+          items: { type: string }
+        continuityItems:
+          type: array
+          items: { $ref: "#/components/schemas/ScreenplayContinuityItem" }
+      required: [sceneNumber, slugline, location, intExt, timeOfDay, storyDay, scriptText, characters, continuityItems]
+    ScreenplayContinuityItem:
+      type: object
+      properties:
+        category: { type: string }
+        entity: { type: string }
+        expectedState: { type: string }
+        sourceType: { type: string, enum: [script] }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        active: { type: boolean }
+        sourceEvidence: { type: [string, "null"] }
+      required: [category, entity, expectedState, sourceType, confidence, active, sourceEvidence]

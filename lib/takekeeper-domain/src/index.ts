@@ -23,6 +23,48 @@ export const sceneBreakdownSchema = z.object({
   continuityItems: z.array(continuityItemSchema),
 });
 
+export const screenplaySourceTypes = ["paste", "txt"] as const;
+export const screenplayImportStatuses = ["analyzing", "review", "approved", "failed"] as const;
+export const screenplayContinuityCategories = ["wardrobe", "props", "hair_makeup", "blocking", "set", "action", "other"] as const;
+
+export const screenplayContinuityItemSchema = continuityItemSchema.extend({
+  category: z.enum(screenplayContinuityCategories),
+  sourceType: z.literal("script"),
+  confidence: z.number().min(0).max(1),
+  sourceEvidence: z.string().min(1).nullable(),
+});
+
+export const screenplaySceneSchema = z.object({
+  id: z.string().uuid().optional(),
+  sceneNumber: z.string().min(1),
+  slugline: z.string().min(1),
+  location: z.string(),
+  intExt: z.enum(["INT", "EXT", "INT/EXT", ""]),
+  timeOfDay: z.string(),
+  storyDay: z.string(),
+  scriptText: z.string().nullable(),
+  characters: z.array(z.string().min(1)),
+  continuityItems: z.array(screenplayContinuityItemSchema),
+});
+
+export const screenplayBreakdownSchema = z.object({
+  scenes: z.array(screenplaySceneSchema),
+});
+
+export const screenplayImportSchema = z.object({
+  id: z.string().uuid(),
+  projectId: z.string().uuid(),
+  sourceType: z.enum(screenplaySourceTypes),
+  fileName: z.string().nullable(),
+  content: z.string(),
+  status: z.enum(screenplayImportStatuses),
+  errorMessage: z.string().nullable(),
+  model: z.string().nullable(),
+  analysis: screenplayBreakdownSchema.nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
 export const visualObservationSchema = z.object({
   category: z.string().min(1),
   entity: z.string().min(1),
@@ -95,6 +137,9 @@ export const dailyReportSchema = z.object({
 });
 
 export type SceneBreakdown = z.infer<typeof sceneBreakdownSchema>;
+export type ScreenplayScene = z.infer<typeof screenplaySceneSchema>;
+export type ScreenplayBreakdown = z.infer<typeof screenplayBreakdownSchema>;
+export type ScreenplayImport = z.infer<typeof screenplayImportSchema>;
 export type ContinuityItem = z.infer<typeof continuityItemSchema>;
 export type VisualObservation = z.infer<typeof visualObservationSchema>;
 export type VisualStateResult = z.infer<typeof visualStateResultSchema>;

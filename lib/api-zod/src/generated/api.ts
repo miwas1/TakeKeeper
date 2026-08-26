@@ -723,3 +723,313 @@ export const GetDailyReportResponse = zod.object({
 })
 
 
+/**
+ * @summary Get the latest screenplay import
+ */
+export const GetScreenplayImportParams = zod.object({
+  "projectId": zod.coerce.string()
+})
+
+export const getScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMin = 0;
+export const getScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMax = 1;
+
+
+
+export const GetScreenplayImportResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "sourceType": zod.enum(['paste', 'txt']),
+  "fileName": zod.string().nullable(),
+  "content": zod.string(),
+  "status": zod.enum(['analyzing', 'review', 'approved', 'failed']),
+  "errorMessage": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "analysis": zod.union([zod.object({
+  "scenes": zod.array(zod.object({
+  "id": zod.string().nullish(),
+  "sceneNumber": zod.string(),
+  "slugline": zod.string(),
+  "location": zod.string(),
+  "intExt": zod.enum(['INT', 'EXT', 'INT/EXT', '']),
+  "timeOfDay": zod.string(),
+  "storyDay": zod.string(),
+  "scriptText": zod.string().nullable(),
+  "characters": zod.array(zod.string()),
+  "continuityItems": zod.array(zod.object({
+  "category": zod.string(),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "sourceType": zod.enum(['script']),
+  "confidence": zod.number().min(getScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMin).max(getScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMax),
+  "active": zod.boolean(),
+  "sourceEvidence": zod.string().nullable()
+}))
+}))
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Save and analyze screenplay text
+ */
+export const CreateScreenplayImportParams = zod.object({
+  "projectId": zod.coerce.string()
+})
+
+export const createScreenplayImportBodyContentMin = 40;
+
+
+
+export const CreateScreenplayImportBody = zod.object({
+  "sourceType": zod.enum(['paste', 'txt']),
+  "fileName": zod.string().nullish(),
+  "content": zod.string().min(createScreenplayImportBodyContentMin)
+})
+
+export const createScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMin = 0;
+export const createScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMax = 1;
+
+
+
+export const CreateScreenplayImportResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "sourceType": zod.enum(['paste', 'txt']),
+  "fileName": zod.string().nullable(),
+  "content": zod.string(),
+  "status": zod.enum(['analyzing', 'review', 'approved', 'failed']),
+  "errorMessage": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "analysis": zod.union([zod.object({
+  "scenes": zod.array(zod.object({
+  "id": zod.string().nullish(),
+  "sceneNumber": zod.string(),
+  "slugline": zod.string(),
+  "location": zod.string(),
+  "intExt": zod.enum(['INT', 'EXT', 'INT/EXT', '']),
+  "timeOfDay": zod.string(),
+  "storyDay": zod.string(),
+  "scriptText": zod.string().nullable(),
+  "characters": zod.array(zod.string()),
+  "continuityItems": zod.array(zod.object({
+  "category": zod.string(),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "sourceType": zod.enum(['script']),
+  "confidence": zod.number().min(createScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMin).max(createScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMax),
+  "active": zod.boolean(),
+  "sourceEvidence": zod.string().nullable()
+}))
+}))
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Save screenplay review edits
+ */
+export const UpdateScreenplayImportParams = zod.object({
+  "importId": zod.coerce.string()
+})
+
+export const updateScreenplayImportBodyAnalysisScenesItemContinuityItemsItemConfidenceMin = 0;
+export const updateScreenplayImportBodyAnalysisScenesItemContinuityItemsItemConfidenceMax = 1;
+
+
+
+export const UpdateScreenplayImportBody = zod.object({
+  "analysis": zod.object({
+  "scenes": zod.array(zod.object({
+  "id": zod.string().nullish(),
+  "sceneNumber": zod.string(),
+  "slugline": zod.string(),
+  "location": zod.string(),
+  "intExt": zod.enum(['INT', 'EXT', 'INT/EXT', '']),
+  "timeOfDay": zod.string(),
+  "storyDay": zod.string(),
+  "scriptText": zod.string().nullable(),
+  "characters": zod.array(zod.string()),
+  "continuityItems": zod.array(zod.object({
+  "category": zod.string(),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "sourceType": zod.enum(['script']),
+  "confidence": zod.number().min(updateScreenplayImportBodyAnalysisScenesItemContinuityItemsItemConfidenceMin).max(updateScreenplayImportBodyAnalysisScenesItemContinuityItemsItemConfidenceMax),
+  "active": zod.boolean(),
+  "sourceEvidence": zod.string().nullable()
+}))
+}))
+})
+})
+
+export const updateScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMin = 0;
+export const updateScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMax = 1;
+
+
+
+export const UpdateScreenplayImportResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "sourceType": zod.enum(['paste', 'txt']),
+  "fileName": zod.string().nullable(),
+  "content": zod.string(),
+  "status": zod.enum(['analyzing', 'review', 'approved', 'failed']),
+  "errorMessage": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "analysis": zod.union([zod.object({
+  "scenes": zod.array(zod.object({
+  "id": zod.string().nullish(),
+  "sceneNumber": zod.string(),
+  "slugline": zod.string(),
+  "location": zod.string(),
+  "intExt": zod.enum(['INT', 'EXT', 'INT/EXT', '']),
+  "timeOfDay": zod.string(),
+  "storyDay": zod.string(),
+  "scriptText": zod.string().nullable(),
+  "characters": zod.array(zod.string()),
+  "continuityItems": zod.array(zod.object({
+  "category": zod.string(),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "sourceType": zod.enum(['script']),
+  "confidence": zod.number().min(updateScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMin).max(updateScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMax),
+  "active": zod.boolean(),
+  "sourceEvidence": zod.string().nullable()
+}))
+}))
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Approve screenplay scenes and continuity items
+ */
+export const ApproveScreenplayImportParams = zod.object({
+  "importId": zod.coerce.string()
+})
+
+export const approveScreenplayImportBodyAnalysisScenesItemContinuityItemsItemConfidenceMin = 0;
+export const approveScreenplayImportBodyAnalysisScenesItemContinuityItemsItemConfidenceMax = 1;
+
+
+
+export const ApproveScreenplayImportBody = zod.object({
+  "analysis": zod.object({
+  "scenes": zod.array(zod.object({
+  "id": zod.string().nullish(),
+  "sceneNumber": zod.string(),
+  "slugline": zod.string(),
+  "location": zod.string(),
+  "intExt": zod.enum(['INT', 'EXT', 'INT/EXT', '']),
+  "timeOfDay": zod.string(),
+  "storyDay": zod.string(),
+  "scriptText": zod.string().nullable(),
+  "characters": zod.array(zod.string()),
+  "continuityItems": zod.array(zod.object({
+  "category": zod.string(),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "sourceType": zod.enum(['script']),
+  "confidence": zod.number().min(approveScreenplayImportBodyAnalysisScenesItemContinuityItemsItemConfidenceMin).max(approveScreenplayImportBodyAnalysisScenesItemContinuityItemsItemConfidenceMax),
+  "active": zod.boolean(),
+  "sourceEvidence": zod.string().nullable()
+}))
+}))
+})
+})
+
+export const approveScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMin = 0;
+export const approveScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMax = 1;
+
+
+
+export const ApproveScreenplayImportResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "sourceType": zod.enum(['paste', 'txt']),
+  "fileName": zod.string().nullable(),
+  "content": zod.string(),
+  "status": zod.enum(['analyzing', 'review', 'approved', 'failed']),
+  "errorMessage": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "analysis": zod.union([zod.object({
+  "scenes": zod.array(zod.object({
+  "id": zod.string().nullish(),
+  "sceneNumber": zod.string(),
+  "slugline": zod.string(),
+  "location": zod.string(),
+  "intExt": zod.enum(['INT', 'EXT', 'INT/EXT', '']),
+  "timeOfDay": zod.string(),
+  "storyDay": zod.string(),
+  "scriptText": zod.string().nullable(),
+  "characters": zod.array(zod.string()),
+  "continuityItems": zod.array(zod.object({
+  "category": zod.string(),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "sourceType": zod.enum(['script']),
+  "confidence": zod.number().min(approveScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMin).max(approveScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMax),
+  "active": zod.boolean(),
+  "sourceEvidence": zod.string().nullable()
+}))
+}))
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Retry the latest screenplay analysis
+ */
+export const RetryScreenplayImportParams = zod.object({
+  "importId": zod.coerce.string()
+})
+
+export const retryScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMin = 0;
+export const retryScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMax = 1;
+
+
+
+export const RetryScreenplayImportResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "sourceType": zod.enum(['paste', 'txt']),
+  "fileName": zod.string().nullable(),
+  "content": zod.string(),
+  "status": zod.enum(['analyzing', 'review', 'approved', 'failed']),
+  "errorMessage": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "analysis": zod.union([zod.object({
+  "scenes": zod.array(zod.object({
+  "id": zod.string().nullish(),
+  "sceneNumber": zod.string(),
+  "slugline": zod.string(),
+  "location": zod.string(),
+  "intExt": zod.enum(['INT', 'EXT', 'INT/EXT', '']),
+  "timeOfDay": zod.string(),
+  "storyDay": zod.string(),
+  "scriptText": zod.string().nullable(),
+  "characters": zod.array(zod.string()),
+  "continuityItems": zod.array(zod.object({
+  "category": zod.string(),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "sourceType": zod.enum(['script']),
+  "confidence": zod.number().min(retryScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMin).max(retryScreenplayImportResponseAnalysisOneScenesItemContinuityItemsItemConfidenceMax),
+  "active": zod.boolean(),
+  "sourceEvidence": zod.string().nullable()
+}))
+}))
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+

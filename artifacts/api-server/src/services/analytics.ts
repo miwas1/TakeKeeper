@@ -4,6 +4,8 @@ export const analyticsEvents = [
   "onboarding_started",
   "project_created",
   "script_imported",
+  "script_breakdown_review_saved",
+  "script_breakdown_approved",
   "scene_created",
   "project_updated",
   "project_archived",

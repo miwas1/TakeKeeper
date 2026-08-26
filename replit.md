@@ -21,6 +21,7 @@ TakeKeeper is a production-monitor workspace that helps film crews know what cha
 - OpenAPI + Orval + Zod
 - Replit App Storage
 - Google Gemini / ADK / Agent Engine architecture only
+- Google Gemini Script Breakdown runtime using the server-only `GEMINI_API_KEY` secret
 
 ## Source of truth
 
@@ -41,9 +42,11 @@ TakeKeeper is a production-monitor workspace that helps film crews know what cha
 
 ## Product boundaries
 
-Phase 2 is a working product shell. Projects, scenes, shots, takes, continuity items, intentional state changes, activity, and media metadata are real persisted records. Media bytes belong in App Storage and must never be written as base64 or blobs into PostgreSQL.
+Phase 3 adds a real Script Breakdown Agent to the working product shell. Pasted and `.txt` screenplay text is saved before analysis, Gemini output is validated before review, and only explicit approval writes scenes and script-sourced continuity items.
 
-Do not fabricate continuity observations, issues, confidence scores, comparisons, or "all clear" results. Results and reports remain explicit shells until Gemini/Agent Engine analysis is connected.
+Do not fabricate continuity observations, issues, confidence scores, comparisons, or "all clear" results. Script Breakdown confidence must come from validated Gemini output or filmmaker review. Visual Results and Reports remain explicit shells until their Google agents are implemented.
+
+Preserve original screenplay text when analysis fails. The model never writes application state directly; ownership-checked application routes save sources, reviews, approvals, and safe agent events. Preserve manual Continuity Bible items when approving script-derived items.
 
 The mobile-first production flow is Projects → Scene → Shot → Shoot. Desktop progressively enhances the same workflow and adds Reports navigation.
 

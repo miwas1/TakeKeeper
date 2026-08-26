@@ -2,6 +2,7 @@ import { and, count, desc, eq, inArray } from "drizzle-orm";
 import {
   agentEventsTable,
   continuityIssuesTable,
+  continuityItemsTable,
   db,
   projectsTable,
   scenesTable,
@@ -83,8 +84,8 @@ export async function listProjectScenes(projectId: string) {
         shotCount: shots.length,
         continuityCount: await db
           .select({ value: count() })
-          .from(continuityIssuesTable)
-          .where(eq(continuityIssuesTable.sceneId, scene.id))
+          .from(continuityItemsTable)
+          .where(eq(continuityItemsTable.sceneId, scene.id))
           .then(([row]) => row.value),
         sortOrder: scene.sortOrder,
       };

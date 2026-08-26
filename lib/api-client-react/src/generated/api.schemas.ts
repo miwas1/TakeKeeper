@@ -266,6 +266,116 @@ export interface DailyReport {
   unresolvedWarnings: number;
 }
 
+export type ScreenplayImportInputSourceType = typeof ScreenplayImportInputSourceType[keyof typeof ScreenplayImportInputSourceType];
+
+
+export const ScreenplayImportInputSourceType = {
+  paste: 'paste',
+  txt: 'txt',
+} as const;
+
+export interface ScreenplayImportInput {
+  sourceType: ScreenplayImportInputSourceType;
+  /** @nullable */
+  fileName?: string | null;
+  /** @minLength 40 */
+  content: string;
+}
+
+export type ScreenplaySceneIntExt = typeof ScreenplaySceneIntExt[keyof typeof ScreenplaySceneIntExt];
+
+
+export const ScreenplaySceneIntExt = {
+  INT: 'INT',
+  EXT: 'EXT',
+  'INT/EXT': 'INT/EXT',
+  '': '',
+} as const;
+
+export type ScreenplayContinuityItemSourceType = typeof ScreenplayContinuityItemSourceType[keyof typeof ScreenplayContinuityItemSourceType];
+
+
+export const ScreenplayContinuityItemSourceType = {
+  script: 'script',
+} as const;
+
+export interface ScreenplayContinuityItem {
+  category: string;
+  entity: string;
+  expectedState: string;
+  sourceType: ScreenplayContinuityItemSourceType;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  confidence: number;
+  active: boolean;
+  /** @nullable */
+  sourceEvidence: string | null;
+}
+
+export interface ScreenplayScene {
+  /** @nullable */
+  id?: string | null;
+  sceneNumber: string;
+  slugline: string;
+  location: string;
+  intExt: ScreenplaySceneIntExt;
+  timeOfDay: string;
+  storyDay: string;
+  /** @nullable */
+  scriptText: string | null;
+  characters: string[];
+  continuityItems: ScreenplayContinuityItem[];
+}
+
+export interface ScreenplayBreakdown {
+  scenes: ScreenplayScene[];
+}
+
+export interface ScreenplayImportUpdate {
+  analysis: ScreenplayBreakdown;
+}
+
+export interface ScreenplayApprovalInput {
+  analysis: ScreenplayBreakdown;
+}
+
+export type ScreenplayImportSourceType = typeof ScreenplayImportSourceType[keyof typeof ScreenplayImportSourceType];
+
+
+export const ScreenplayImportSourceType = {
+  paste: 'paste',
+  txt: 'txt',
+} as const;
+
+export type ScreenplayImportStatus = typeof ScreenplayImportStatus[keyof typeof ScreenplayImportStatus];
+
+
+export const ScreenplayImportStatus = {
+  analyzing: 'analyzing',
+  review: 'review',
+  approved: 'approved',
+  failed: 'failed',
+} as const;
+
+export interface ScreenplayImport {
+  id: string;
+  projectId: string;
+  sourceType: ScreenplayImportSourceType;
+  /** @nullable */
+  fileName: string | null;
+  content: string;
+  status: ScreenplayImportStatus;
+  /** @nullable */
+  errorMessage: string | null;
+  /** @nullable */
+  model: string | null;
+  analysis: ScreenplayBreakdown | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /**
  * Invalid request
  */

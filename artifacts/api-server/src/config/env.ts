@@ -9,6 +9,7 @@ const serverEnvSchema = z.object({
   GOOGLE_CLOUD_PROJECT: z.string().min(1).optional(),
   GOOGLE_CLOUD_LOCATION: z.string().min(1).default("us-central1"),
   AGENT_ENGINE_ID: z.string().min(1).optional(),
+  GEMINI_API_KEY: z.string().min(1).optional(),
 });
 
 const parsed = serverEnvSchema.safeParse(process.env);

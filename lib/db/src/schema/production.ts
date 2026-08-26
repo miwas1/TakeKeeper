@@ -9,12 +9,14 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { projectsTable, usersTable } from "./core";
+import { screenplaySourcesTable } from "./script";
 
 export const scenesTable = pgTable(
   "scenes",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     projectId: uuid("project_id").notNull().references(() => projectsTable.id, { onDelete: "cascade" }),
+    scriptSourceId: uuid("script_source_id").references(() => screenplaySourcesTable.id, { onDelete: "set null" }),
     sceneNumber: text("scene_number").notNull(),
     slugline: text("slugline").notNull(),
     location: text("location").notNull().default(""),
