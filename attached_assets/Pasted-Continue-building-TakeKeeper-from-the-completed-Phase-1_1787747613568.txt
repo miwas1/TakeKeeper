@@ -1,0 +1,517 @@
+Continue building **TakeKeeper** from the completed Phase 1 and Phase 2 implementation.
+
+Do not rebuild working architecture or redesign completed screens unless necessary to support this phase.
+
+Before coding:
+
+1. inspect the current repository;
+2. verify Phase 1 and Phase 2 functionality still works;
+3. inspect the existing database schema, API structure, Google AI configuration, scene workspace, script import UI, and Continuity Bible UI;
+4. reuse existing components and services;
+5. provide a short implementation plan;
+6. then implement this phase.
+
+# Phase 3 Goal
+
+Turn screenplay material into structured production continuity data using a real Google Gemini-powered **Script Breakdown Agent**.
+
+At the end of this phase, a user should be able to:
+
+1. create a project;
+2. paste or upload screenplay text;
+3. send it to the real Google AI backend;
+4. automatically identify scenes;
+5. generate structured scene metadata;
+6. generate scene-specific Continuity Bible items;
+7. review the AI breakdown;
+8. edit or remove incorrect items;
+9. add missing items manually;
+10. save the approved breakdown to PostgreSQL;
+11. reload the application and retain all approved data.
+
+This phase must use real Google AI.
+
+Do NOT fake screenplay analysis.
+
+# Core Principle
+
+The Script Breakdown Agent should extract only information supported by the screenplay.
+
+It must never invent continuity details.
+
+If something is unknown, omit it or mark it as unknown.
+
+For example, if the screenplay says:
+
+> Maya enters carrying a white mug. She wears a red jacket.
+
+Then the system may extract:
+
+* Maya
+* white mug
+* red jacket
+
+It must NOT invent:
+
+* Maya's shoes;
+* jacket closure state;
+* mug position;
+* hair style;
+* phone placement;
+
+unless supported by the screenplay.
+
+# 1. Script Import
+
+Complete the existing script import experience.
+
+Support at minimum:
+
+* pasted screenplay text;
+* `.txt` upload.
+
+If PDF parsing can be implemented reliably without destabilizing the system, also support:
+
+* screenplay PDF upload.
+
+If PDF parsing is unreliable, leave PDF out rather than implementing a broken experience.
+
+Do not require perfect screenplay formatting.
+
+The system should handle reasonably formatted screenplay text.
+
+# 2. Script Validation
+
+Before invoking Gemini:
+
+Validate that:
+
+* content exists;
+* content is long enough to be meaningful;
+* supported file type is used;
+* text extraction succeeded;
+* project exists;
+* user owns the project.
+
+Provide useful errors for:
+
+* empty script;
+* unsupported file;
+* unreadable file;
+* extraction failure;
+* Gemini failure.
+
+Never discard the original submitted screenplay because AI processing fails.
+
+# 3. Script Breakdown Agent
+
+Implement the first real TakeKeeper agent:
+
+**Script Breakdown Agent**
+
+Goal:
+
+Convert screenplay material into structured scene and continuity data.
+
+Use:
+
+* Google Gemini;
+* Google GenAI SDK;
+* Google ADK / Agent Platform architecture established in Phase 1.
+
+Do not use:
+
+* OpenAI;
+* Anthropic;
+* LangChain;
+* OpenRouter;
+* non-Google models;
+* non-Google AI frameworks.
+
+# 4. Structured Output
+
+The Script Breakdown Agent must return validated structured data.
+
+Create or use the existing `SceneBreakdown` schema.
+
+A scene should support fields such as:
+
+```json
+{
+  "scene_number": "12",
+  "slugline": "INT. MAYA'S APARTMENT — NIGHT",
+  "int_ext": "INT",
+  "location": "MAYA'S APARTMENT",
+  "time_of_day": "NIGHT",
+  "story_day": null,
+  "characters": [],
+  "continuity_items": [],
+  "script_text": ""
+}
+```
+
+Each continuity item should support:
+
+```json
+{
+  "category": "props",
+  "entity": "white coffee mug",
+  "expected_state": "Maya carries the mug",
+  "confidence": 0.95,
+  "source_type": "script",
+  "source_evidence": "Maya enters carrying a white mug."
+}
+```
+
+Use the project's existing validation library/schema system.
+
+Never save unvalidated Gemini output directly to the database.
+
+# 5. Categories
+
+The Script Breakdown Agent should identify continuity information across these categories:
+
+* characters;
+* wardrobe;
+* props;
+* hair & makeup;
+* injuries / physical condition;
+* blocking when explicitly described;
+* action;
+* set dressing;
+* object placement when explicitly stated;
+* screen direction when clearly supported;
+* continuity dependencies;
+* story day where reasonably inferable;
+* other relevant continuity information.
+
+Do not force every category to contain something.
+
+Empty categories are acceptable.
+
+# 6. Scene Detection
+
+The agent should detect scene boundaries.
+
+For each scene attempt to identify:
+
+* scene number if present;
+* INT / EXT;
+* location;
+* time of day;
+* characters;
+* scene text;
+* ordering.
+
+If scene numbers are not supplied, create stable internal ordering without pretending those numbers came from the screenplay.
+
+For example:
+
+* Scene 1
+* Scene 2
+* Scene 3
+
+can be assigned as application ordering when necessary.
+
+# 7. Continuity Dependency Reasoning
+
+The agent should identify useful continuity dependencies where supported.
+
+Example:
+
+```text
+Scene 3:
+Maya cuts her hand.
+
+Scene 5:
+Maya wraps her injured hand in a bandage.
+```
+
+The breakdown may establish an injury continuity dependency.
+
+Do not over-reason or invent off-screen events.
+
+Confidence should decrease when an inference is less explicit.
+
+# 8. Agent Tools
+
+The Script Breakdown Agent should use validated application tools where application state must be created or changed.
+
+Implement or complete tools such as:
+
+* `get_project`
+* `create_scene`
+* `update_scene_metadata`
+* `create_continuity_item`
+* `save_script_source`
+* `record_agent_event`
+
+The model must not directly access or mutate PostgreSQL.
+
+Required pattern:
+
+```text
+Gemini decides an application action is needed
+→ requests tool/function call
+→ server validates arguments
+→ application service performs database operation
+→ result returned
+→ agent continues
+```
+
+# 9. Review Before Commit
+
+Do not immediately turn every Gemini result into authoritative continuity state without giving the user visibility.
+
+After analysis, show a review screen.
+
+Example:
+
+# Scene 12
+
+**INT. MAYA'S APARTMENT — NIGHT**
+
+## Characters
+
+* Maya
+* Jon
+
+## Wardrobe
+
+* Maya — red jacket
+* Jon — gray hoodie
+
+## Props
+
+* white mug
+* phone
+* keys
+
+## Action
+
+* Maya carries mug
+
+The user must be able to:
+
+* edit;
+* remove;
+* add;
+* approve.
+
+Make source-derived items visually understandable without exposing technical AI terminology.
+
+# 10. Continuity Bible
+
+Complete the real Continuity Bible workflow.
+
+Every saved item should include:
+
+* category;
+* entity;
+* expected state;
+* source type;
+* confidence;
+* source evidence where appropriate;
+* active/inactive status;
+* timestamps.
+
+UI groups should include:
+
+* Wardrobe
+* Props
+* Hair & Makeup
+* Blocking
+* Set
+* Action
+* Other
+
+Users should be able to manually override AI-generated information.
+
+The filmmaker is authoritative.
+
+# 11. Confidence UX
+
+Do not present uncertain extraction as fact.
+
+For example:
+
+### High confidence
+
+Show normally.
+
+### Medium confidence
+
+Use wording such as:
+
+**Likely from script**
+
+### Low confidence
+
+Place into a review-oriented area such as:
+
+**Worth reviewing**
+
+Do not clutter the Continuity Bible with weak guesses.
+
+# 12. Source Evidence
+
+Where practical, allow users to inspect why a Continuity Bible item was created.
+
+Example:
+
+**Red jacket**
+
+Source:
+
+> “Maya enters wearing a red jacket.”
+
+Keep quotes short and tied to the project's own screenplay text.
+
+Do not expose model chain-of-thought.
+
+Only show screenplay evidence.
+
+# 13. Agent Activity
+
+Connect this phase to the developer Agent Activity panel.
+
+Record events such as:
+
+```text
+ScriptBreakdown → analyze_script
+ScriptBreakdown → create_scene ×4
+ScriptBreakdown → create_continuity_item ×17
+```
+
+Record:
+
+* timestamp;
+* agent;
+* action;
+* tool;
+* success/failure;
+* latency;
+* safe metadata.
+
+Do not log hidden reasoning.
+
+# 14. Retry Behavior
+
+If Gemini fails:
+
+Show:
+
+**Couldn't analyze the script**
+
+Supporting text:
+
+**Your script is saved. Try the analysis again.**
+
+CTA:
+
+**Retry Analysis**
+
+Do not require the user to re-upload or paste the screenplay.
+
+# 15. Loading Experience
+
+During analysis show real progress states based on actual processing stages.
+
+Examples:
+
+* Reading screenplay
+* Identifying scenes
+* Building continuity
+* Preparing review
+
+Do not fake completion before the backend actually reaches these stages.
+
+# 16. Demo Project Compatibility
+
+Do not break **The Last Cup** seeded demo project.
+
+Its manually seeded Continuity Bible should continue working.
+
+If useful, add an original short screenplay source for The Last Cup that can be passed through the real Script Breakdown Agent.
+
+Do not hardcode the AI output.
+
+# 17. Persistence
+
+After approving the screenplay breakdown:
+
+* scenes must persist;
+* screenplay text must persist;
+* Continuity Bible items must persist;
+* edits must persist;
+* deletions must persist;
+* user-added items must persist.
+
+Reloading the application must retain the approved state.
+
+# 18. Security
+
+Ensure:
+
+* only project owners/authorized members can process scripts;
+* script data is scoped to the project;
+* Gemini credentials remain server-side;
+* Google credentials are never exposed to the client;
+* user script data is not written to logs unnecessarily.
+
+# 19. Do Not Build Yet
+
+Do NOT implement:
+
+* reference-versus-take comparison;
+* Continuity Supervisor Agent;
+* automated visual continuity issues;
+* state-change memory logic;
+* RevenueCat;
+* OneSignal;
+* advanced reports;
+* unrelated filmmaking tools.
+
+The focus is screenplay → structured scene data → approved Continuity Bible.
+
+# Phase 3 Acceptance Test
+
+Do not mark Phase 3 complete until:
+
+1. create a project;
+2. open Import Script;
+3. paste original screenplay text;
+4. submit it;
+5. real Gemini analysis runs;
+6. multiple scenes are detected correctly;
+7. structured output validation succeeds;
+8. Continuity Bible items are generated;
+9. no unsupported details are knowingly fabricated;
+10. user can edit an AI-generated item;
+11. user can delete an AI-generated item;
+12. user can add a manual item;
+13. user can approve the breakdown;
+14. scenes persist after reload;
+15. continuity items persist after reload;
+16. screenplay text persists;
+17. Agent Activity records the workflow;
+18. Gemini failure can be retried without losing the script;
+19. Google credentials remain server-side;
+20. build, lint, and TypeScript checks pass.
+
+# End-of-Phase Report
+
+When finished provide:
+
+1. what was implemented;
+2. Script Breakdown Agent architecture;
+3. Gemini model/configuration used;
+4. schemas implemented;
+5. application tools implemented;
+6. script formats supported;
+7. database changes;
+8. Agent Activity integration;
+9. acceptance-test results;
+10. known limitations.
+
+Do not begin Phase 4 until the screenplay-to-Continuity-Bible flow is reliable.
