@@ -64,17 +64,17 @@ export default function ProjectsList() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+      <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Film className="w-8 h-8 text-primary" /> Projects
+          <h1 className="flex items-center gap-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            <Film className="h-7 w-7 text-primary sm:h-8 sm:w-8" /> Projects
           </h1>
           <p className="text-muted-foreground text-sm font-mono mt-1">PRODUCTION DIRECTORY</p>
         </div>
         
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="font-mono text-xs uppercase tracking-wider">
+            <Button className="w-full font-mono text-xs uppercase tracking-wider sm:w-auto">
               <Plus className="w-4 h-4 mr-2" /> New Project
             </Button>
           </DialogTrigger>

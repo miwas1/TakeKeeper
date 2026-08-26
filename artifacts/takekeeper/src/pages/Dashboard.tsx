@@ -46,55 +46,55 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 sm:space-y-8">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Production Status</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Production Status</h1>
         <p className="text-muted-foreground text-sm font-mono">WORKSPACE / ACTIVE</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Card className="bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Projects</CardTitle>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2 space-y-0">
+            <CardTitle className="text-xs font-medium leading-4 text-muted-foreground sm:text-sm">Active Projects</CardTitle>
             <FolderOpen className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-mono">{dashboard.activeProjectCount}</div>
+            <div className="text-2xl font-bold font-mono sm:text-3xl">{dashboard.activeProjectCount}</div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Scenes</CardTitle>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2 space-y-0">
+            <CardTitle className="text-xs font-medium leading-4 text-muted-foreground sm:text-sm">Total Scenes</CardTitle>
             <Clapperboard className="h-4 w-4 text-info" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-mono">{dashboard.sceneCount}</div>
+            <div className="text-2xl font-bold font-mono sm:text-3xl">{dashboard.sceneCount}</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Open Issues</CardTitle>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2 space-y-0">
+            <CardTitle className="text-xs font-medium leading-4 text-muted-foreground sm:text-sm">Open Issues</CardTitle>
             <AlertCircle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-mono text-destructive">{dashboard.openIssueCount}</div>
+            <div className="text-2xl font-bold font-mono text-destructive sm:text-3xl">{dashboard.openIssueCount}</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Circled Takes</CardTitle>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2 space-y-0">
+            <CardTitle className="text-xs font-medium leading-4 text-muted-foreground sm:text-sm">Circled Takes</CardTitle>
             <PlayCircle className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-mono text-success">{dashboard.circledTakeCount}</div>
+            <div className="text-2xl font-bold font-mono text-success sm:text-3xl">{dashboard.circledTakeCount}</div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:gap-8">
         <Card className="flex flex-col">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">

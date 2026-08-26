@@ -99,7 +99,7 @@ export default function ProjectDetail() {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
       {/* Header section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm text-muted-foreground font-mono mb-2">
             <Link href="/projects" className="hover:text-foreground transition-colors">PROJECTS</Link>
@@ -110,7 +110,7 @@ export default function ProjectDetail() {
           {projectLoading ? (
             <Skeleton className="h-10 w-64" />
           ) : (
-            <h1 className="text-3xl font-bold tracking-tight">{project?.title}</h1>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{project?.title}</h1>
           )}
           
           {projectLoading ? (
@@ -130,7 +130,7 @@ export default function ProjectDetail() {
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="font-mono text-xs uppercase tracking-wider shrink-0" disabled={projectLoading}>
+            <Button className="w-full shrink-0 font-mono text-xs uppercase tracking-wider sm:w-auto" disabled={projectLoading}>
               <Plus className="w-4 h-4 mr-2" /> Add Scene
             </Button>
           </DialogTrigger>
@@ -252,7 +252,7 @@ export default function ProjectDetail() {
       </div>
 
       {/* Stats summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
         <Card className="bg-card">
           <CardContent className="p-4 flex flex-col items-center justify-center text-center">
             <span className="text-muted-foreground text-[10px] font-mono mb-1">TOTAL SCENES</span>

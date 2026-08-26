@@ -66,29 +66,46 @@ export function Shell({ children }: LayoutProps) {
       </nav>
 
       {/* Mobile nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-sidebar px-4 py-3 z-50 flex items-center justify-between safe-area-bottom">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 min-h-16 border-t border-border bg-sidebar px-2 pt-2 pb-1 z-50 flex items-start justify-around safe-area-bottom">
         {navigation.map((item) => {
           const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
           return (
             <Link
               key={item.name}
               href={item.href}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex flex-col items-center gap-1 p-2 rounded-sm text-xs font-medium transition-colors",
+                "flex min-w-[4.25rem] flex-col items-center gap-1 rounded-sm px-2 py-1.5 text-[10px] font-medium transition-colors",
                 isActive
                   ? "text-primary"
                   : "text-muted-foreground"
               )}
             >
-              <item.icon className="w-5 h-5" />
-              <span className="sr-only">{item.name}</span>
+              <item.icon className="h-5 w-5" />
+              <span>{item.name}</span>
             </Link>
           );
         })}
       </div>
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0 relative overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 pb-24 md:pb-0 relative overflow-y-auto">
+        <header className="md:hidden sticky top-0 z-40 -mx-4 -mt-4 mb-6 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur">
+          <Link href="/" className="flex items-center gap-2.5" aria-label="TakeKeeper home">
+            <span className="flex h-7 w-7 items-center justify-center rounded-sm bg-primary text-sm font-bold tracking-tighter text-primary-foreground">TK</span>
+            <span className="text-sm font-bold tracking-tight">TakeKeeper</span>
+          </Link>
+          <Link
+            href="/settings"
+            aria-label="Open environment settings"
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
+              location === "/settings" && "bg-secondary text-primary",
+            )}
+          >
+            <Settings className="h-4 w-4" />
+          </Link>
+        </header>
         <div className="flex-1 w-full max-w-6xl mx-auto p-4 md:p-8">
           {children}
         </div>

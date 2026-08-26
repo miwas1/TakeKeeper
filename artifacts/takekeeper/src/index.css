@@ -149,6 +149,7 @@
 
 @layer utilities {
   input[type='search']::-webkit-search-cancel-button { @apply hidden; }
+  .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
   [contenteditable][data-placeholder]:empty::before {
     content: attr(data-placeholder);
     color: hsl(var(--muted-foreground));
