@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db, mediaTable, mediaUploadReservationsTable, projectsTable, scenesTable } from "@workspace/db";
 import { MediaUploadTooLargeError, mediaStorage } from "../services/storage";
 import { logger } from "../lib/logger";
+import { projectAccessCondition } from "../services/authorization";
 
 const router: IRouter = Router();
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -124,7 +125,7 @@ router.post("/storage/uploads/request-url", async (req, res): Promise<void> => {
   const [project] = await db
     .select({ id: projectsTable.id })
     .from(projectsTable)
-    .where(and(eq(projectsTable.id, body.data.projectId), eq(projectsTable.ownerId, res.locals.userId as string)))
+    .where(and(eq(projectsTable.id, body.data.projectId), projectAccessCondition(res.locals.userId as string, "write")))
     .limit(1);
   if (!project) {
     res.status(404).json({ error: "Project not found", code: "PROJECT_NOT_FOUND" });
@@ -173,7 +174,7 @@ router.get("/storage/objects/*path", async (req, res): Promise<void> => {
     .select({ id: mediaTable.id })
     .from(mediaTable)
     .innerJoin(projectsTable, eq(mediaTable.projectId, projectsTable.id))
-    .where(and(eq(mediaTable.storageKey, storageKey), eq(projectsTable.ownerId, res.locals.userId as string)))
+    .where(and(eq(mediaTable.storageKey, storageKey), projectAccessCondition(res.locals.userId as string, "read")))
     .limit(1);
   if (!ownedMedia) {
     res.status(404).json({ error: "Media not found", code: "MEDIA_NOT_FOUND" });
@@ -207,7 +208,7 @@ router.get("/storage/local-objects/:token", async (req, res): Promise<void> => {
     .select({ mediaType: mediaTable.mediaType })
     .from(mediaTable)
     .innerJoin(projectsTable, eq(mediaTable.projectId, projectsTable.id))
-    .where(and(eq(mediaTable.storageKey, storageKey), eq(projectsTable.ownerId, res.locals.userId as string)))
+    .where(and(eq(mediaTable.storageKey, storageKey), projectAccessCondition(res.locals.userId as string, "read")))
     .limit(1);
   if (!ownedMedia) {
     res.status(404).json({ error: "Media not found", code: "MEDIA_NOT_FOUND" });

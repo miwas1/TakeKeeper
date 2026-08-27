@@ -23,6 +23,7 @@ import {
   runContinuitySupervisor,
   type ContinuitySupervisorInput,
 } from "../google-ai";
+import { queryAgentEngine } from "../google-ai/agent-engine";
 import { recordAgentEvent, trackEvent } from "../analytics";
 import {
   getLatestAnalysisRun,
@@ -496,6 +497,48 @@ async function executeContinuityCheckRun(run: AnalysisRun): Promise<AnalysisRun>
     await tools.get_continuity_bible.execute({ sceneId: context.scene.id });
     await tools.get_reference_take.execute({ shotId: context.shot.id });
     await tools.get_previous_approved_changes.execute({ sceneId: context.scene.id, takeId: run.takeId });
+
+    if (env.AGENT_ENGINE_ID) {
+      const engineStartedAt = Date.now();
+      await recordAgentEvent({
+        projectId: context.scene.projectId,
+        agent: "google-agent-engine",
+        action: "ContinuityWorkflow → coordinate",
+        toolName: "reasoningEngines.query",
+        status: "started",
+        metadata: { analysisRunId: run.id, engineId: env.AGENT_ENGINE_ID },
+      });
+      const engineOutput = await queryAgentEngine({
+        workflow: "takekeeper_continuity_check",
+        analysisRunId: run.id,
+        projectId: context.project.id,
+        sceneId: context.scene.id,
+        shotId: context.shot.id,
+        takeId: context.take.id,
+        referenceTakeId: referenceTake.id,
+        requestedTools: [
+          "get_scene",
+          "get_continuity_bible",
+          "get_reference_take",
+          "get_previous_approved_changes",
+          "analyze_media",
+          "get_effective_continuity_state",
+          "create_issue",
+        ],
+      });
+      await recordAgentEvent({
+        projectId: context.scene.projectId,
+        agent: "google-agent-engine",
+        action: "ContinuityWorkflow → coordinate",
+        toolName: "reasoningEngines.query",
+        status: "completed",
+        latencyMs: Date.now() - engineStartedAt,
+        metadata: {
+          analysisRunId: run.id,
+          outputReceived: engineOutput !== null && engineOutput !== undefined,
+        },
+      });
+    }
 
     let referenceVisualRun = await getLatestCompletedAnalysisRun(referenceTake.id, "visual_state");
     if (!referenceVisualRun) {

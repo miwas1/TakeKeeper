@@ -11,6 +11,8 @@ const serverEnvSchema = z.object({
   GOOGLE_CLOUD_PROJECT: z.string().min(1).optional(),
   GOOGLE_CLOUD_LOCATION: z.string().min(1).default("us-central1"),
   AGENT_ENGINE_ID: z.string().min(1).optional(),
+  AGENT_ENGINE_CLASS_METHOD: z.string().min(1).default("query"),
+  GOOGLE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
   GEMINI_API_KEY: z.string().min(1).optional(),
 });
 
@@ -30,5 +32,6 @@ export const googleAgentReadiness = {
   model: env.GEMINI_MODEL,
   location: env.GOOGLE_CLOUD_LOCATION,
   cloudProjectConfigured: Boolean(env.GOOGLE_CLOUD_PROJECT),
-  agentEngineConfigured: Boolean(env.AGENT_ENGINE_ID),
+  agentEngineConfigured: Boolean(env.GOOGLE_CLOUD_PROJECT && env.AGENT_ENGINE_ID && env.GOOGLE_SERVICE_ACCOUNT_JSON),
+  agentEngineCredentialsConfigured: Boolean(env.GOOGLE_SERVICE_ACCOUNT_JSON),
 } as const;

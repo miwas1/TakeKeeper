@@ -90,7 +90,7 @@ router.patch("/projects/:projectId", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Invalid project update", code: "INVALID_PROJECT" });
     return;
   }
-  const project = await findOwnedProject(res.locals.userId as string, params.data.projectId);
+  const project = await findOwnedProject(res.locals.userId as string, params.data.projectId, "write");
   if (!project) {
     res.status(404).json({ error: "Project not found", code: "PROJECT_NOT_FOUND" });
     return;
@@ -110,7 +110,7 @@ router.delete("/projects/:projectId", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Invalid project id", code: "INVALID_PROJECT_ID" });
     return;
   }
-  const project = await findOwnedProject(res.locals.userId as string, params.data.projectId);
+  const project = await findOwnedProject(res.locals.userId as string, params.data.projectId, "delete");
   if (!project) {
     res.status(404).json({ error: "Project not found", code: "PROJECT_NOT_FOUND" });
     return;
@@ -153,7 +153,7 @@ router.post("/projects/:projectId/scenes", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Invalid scene data", code: "INVALID_SCENE" });
     return;
   }
-  const project = await findOwnedProject(res.locals.userId as string, params.data.projectId);
+  const project = await findOwnedProject(res.locals.userId as string, params.data.projectId, "write");
   if (!project) {
     res.status(404).json({ error: "Project not found", code: "PROJECT_NOT_FOUND" });
     return;

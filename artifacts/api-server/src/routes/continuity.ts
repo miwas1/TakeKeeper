@@ -58,7 +58,7 @@ async function validateRecheckTake(userId: string, issueId: string, takeId: stri
   if (previous.issue.status !== "open") {
     throw new ContinuityDecisionError("ISSUE_ALREADY_RESOLVED", "This continuity issue already has a decision");
   }
-  const previousTake = await getOwnedTakeContext(userId, previous.issue.takeId);
+  const previousTake = await getOwnedTakeContext(userId, previous.issue.takeId, "write");
   if (!previousTake || previousTake.shot.id !== shotId || previousTake.take.id === takeId) {
     throw new ContinuityDecisionError("RECHECK_SHOT_MISMATCH", "A recheck must use a different take from the same shot");
   }
@@ -76,7 +76,7 @@ router.post("/takes/:takeId/visual-state", async (req, res): Promise<void> => {
   const params = AnalyzeTakeVisualStateParams.safeParse(req.params);
   const body = AnalyzeTakeVisualStateBody.safeParse(req.body ?? {});
   if (!params.success || !body.success) return void res.status(400).json({ error: "Invalid Visual State analysis request", code: "INVALID_VISUAL_STATE_REQUEST" });
-  const ownedTake = await getOwnedTakeContext(res.locals.userId as string, params.data.takeId);
+  const ownedTake = await getOwnedTakeContext(res.locals.userId as string, params.data.takeId, "write");
   if (!ownedTake) return void res.status(404).json({ error: "Take not found", code: "TAKE_NOT_FOUND" });
   try {
     await startVisualStateAnalysis(params.data.takeId, body.data.force ?? false);
@@ -101,7 +101,7 @@ router.post("/takes/:takeId/continuity-check", async (req, res): Promise<void> =
   const params = RunContinuityCheckParams.safeParse(req.params);
   const body = RunContinuityCheckBody.safeParse(req.body ?? {});
   if (!params.success || !body.success) return void res.status(400).json({ error: "Invalid continuity check request", code: "INVALID_CONTINUITY_CHECK_REQUEST" });
-  const ownedTake = await getOwnedTakeContext(res.locals.userId as string, params.data.takeId);
+  const ownedTake = await getOwnedTakeContext(res.locals.userId as string, params.data.takeId, "write");
   if (!ownedTake) return void res.status(404).json({ error: "Take not found", code: "TAKE_NOT_FOUND" });
   try {
     if (body.data.recheckIssueId) {
@@ -180,7 +180,7 @@ router.post("/continuity/issues/:issueId/recheck", async (req, res): Promise<voi
   const issueId = idSchema.safeParse(req.params.issueId);
   const body = z.object({ takeId: idSchema, retry: z.boolean().optional() }).safeParse(req.body);
   if (!issueId.success || !body.success) return void res.status(400).json({ error: "A new take is required for recheck", code: "INVALID_RECHECK_REQUEST" });
-  const ownedTake = await getOwnedTakeContext(res.locals.userId as string, body.data.takeId);
+  const ownedTake = await getOwnedTakeContext(res.locals.userId as string, body.data.takeId, "write");
   if (!ownedTake) return void res.status(404).json({ error: "Take not found", code: "TAKE_NOT_FOUND" });
   try {
     await validateRecheckTake(res.locals.userId as string, issueId.data, ownedTake.take.id, ownedTake.shot.id);

@@ -45,7 +45,7 @@ export const takeKeeperAgents = {
 export const googleAiConfig = {
   provider: "google",
   runtime: "google-genai-sdk",
-  deploymentTarget: env.AGENT_ENGINE_ID ? "agent-engine" : "local-workflow",
+  deploymentTarget: env.GOOGLE_CLOUD_PROJECT && env.AGENT_ENGINE_ID && env.GOOGLE_SERVICE_ACCOUNT_JSON ? "agent-engine" : "local-workflow",
   model: env.GEMINI_MODEL,
   cloudProject: env.GOOGLE_CLOUD_PROJECT,
   location: env.GOOGLE_CLOUD_LOCATION,

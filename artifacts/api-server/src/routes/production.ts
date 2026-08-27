@@ -18,6 +18,7 @@ import { mediaStorage } from "../services/storage";
 import { approveContinuityItemChange, ContinuityDecisionError } from "../services/continuity/decisions";
 import { getContinuityOverview, resolveApprovedContinuityState } from "../services/continuity/approved-state";
 import { normalizeCategory, normalizeState } from "../services/continuity/normalization";
+import { projectAccessCondition, type ProjectCapability } from "../services/authorization";
 
 const router: IRouter = Router();
 const idSchema = z.string().uuid();
@@ -66,46 +67,46 @@ const continuityInput = z.object({
 
 const continuityUpdate = continuityInput.partial().extend({ active: z.boolean().optional() });
 
-async function ownedScene(userId: string, sceneId: string) {
+async function ownedScene(userId: string, sceneId: string, capability: ProjectCapability = "read") {
   const [row] = await db
     .select({ scene: scenesTable, project: projectsTable })
     .from(scenesTable)
     .innerJoin(projectsTable, eq(scenesTable.projectId, projectsTable.id))
-    .where(and(eq(scenesTable.id, sceneId), eq(projectsTable.ownerId, userId)))
+    .where(and(eq(scenesTable.id, sceneId), projectAccessCondition(userId, capability)))
     .limit(1);
   return row;
 }
 
-async function ownedShot(userId: string, shotId: string) {
+async function ownedShot(userId: string, shotId: string, capability: ProjectCapability = "read") {
   const [row] = await db
     .select({ shot: shotsTable, scene: scenesTable, project: projectsTable })
     .from(shotsTable)
     .innerJoin(scenesTable, eq(shotsTable.sceneId, scenesTable.id))
     .innerJoin(projectsTable, eq(scenesTable.projectId, projectsTable.id))
-    .where(and(eq(shotsTable.id, shotId), eq(projectsTable.ownerId, userId)))
+    .where(and(eq(shotsTable.id, shotId), projectAccessCondition(userId, capability)))
     .limit(1);
   return row;
 }
 
-async function ownedTake(userId: string, takeId: string) {
+async function ownedTake(userId: string, takeId: string, capability: ProjectCapability = "read") {
   const [row] = await db
     .select({ take: takesTable, shot: shotsTable, scene: scenesTable, project: projectsTable })
     .from(takesTable)
     .innerJoin(shotsTable, eq(takesTable.shotId, shotsTable.id))
     .innerJoin(scenesTable, eq(shotsTable.sceneId, scenesTable.id))
     .innerJoin(projectsTable, eq(scenesTable.projectId, projectsTable.id))
-    .where(and(eq(takesTable.id, takeId), eq(projectsTable.ownerId, userId)))
+    .where(and(eq(takesTable.id, takeId), projectAccessCondition(userId, capability)))
     .limit(1);
   return row;
 }
 
-async function ownedContinuityItem(userId: string, itemId: string) {
+async function ownedContinuityItem(userId: string, itemId: string, capability: ProjectCapability = "read") {
   const [row] = await db
     .select({ item: continuityItemsTable, scene: scenesTable, project: projectsTable })
     .from(continuityItemsTable)
     .innerJoin(scenesTable, eq(continuityItemsTable.sceneId, scenesTable.id))
     .innerJoin(projectsTable, eq(scenesTable.projectId, projectsTable.id))
-    .where(and(eq(continuityItemsTable.id, itemId), eq(projectsTable.ownerId, userId)))
+    .where(and(eq(continuityItemsTable.id, itemId), projectAccessCondition(userId, capability)))
     .limit(1);
   return row;
 }
@@ -195,7 +196,7 @@ router.patch("/scenes/:sceneId", async (req, res): Promise<void> => {
   const sceneId = idSchema.safeParse(req.params.sceneId);
   const body = sceneInput.safeParse(req.body);
   if (!sceneId.success || !body.success) return void res.status(400).json({ error: "Invalid scene update" });
-  const row = await ownedScene(res.locals.userId as string, sceneId.data);
+  const row = await ownedScene(res.locals.userId as string, sceneId.data, "write");
   if (!row) return void res.status(404).json({ error: "Scene not found" });
   const [updated] = await db.update(scenesTable).set({ ...body.data, updatedAt: new Date() }).where(eq(scenesTable.id, row.scene.id)).returning();
   res.json(await sceneResponse(updated));
@@ -214,7 +215,7 @@ router.post("/scenes/:sceneId/shots", async (req, res): Promise<void> => {
   const sceneId = idSchema.safeParse(req.params.sceneId);
   const body = shotInput.safeParse(req.body);
   if (!sceneId.success || !body.success) return void res.status(400).json({ error: "Invalid shot" });
-  const row = await ownedScene(res.locals.userId as string, sceneId.data);
+  const row = await ownedScene(res.locals.userId as string, sceneId.data, "write");
   if (!row) return void res.status(404).json({ error: "Scene not found" });
   const [shot] = await db.insert(shotsTable).values({ sceneId: row.scene.id, ...body.data }).returning();
   await trackEvent({ projectId: row.project.id, name: "shot_created", metadata: { sceneId: row.scene.id, shotId: shot.id, label: shot.label } });
@@ -238,7 +239,7 @@ router.patch("/shots/:shotId", async (req, res): Promise<void> => {
   const shotId = idSchema.safeParse(req.params.shotId);
   const body = shotUpdate.safeParse(req.body);
   if (!shotId.success || !body.success) return void res.status(400).json({ error: "Invalid shot update" });
-  const row = await ownedShot(res.locals.userId as string, shotId.data);
+  const row = await ownedShot(res.locals.userId as string, shotId.data, "write");
   if (!row) return void res.status(404).json({ error: "Shot not found" });
   const [updated] = await db.update(shotsTable).set({ ...body.data, updatedAt: new Date() }).where(eq(shotsTable.id, row.shot.id)).returning();
   await trackEvent({ projectId: row.project.id, name: "shot_updated", metadata: { shotId: updated.id } });
@@ -248,7 +249,7 @@ router.patch("/shots/:shotId", async (req, res): Promise<void> => {
 router.delete("/shots/:shotId", async (req, res): Promise<void> => {
   const shotId = idSchema.safeParse(req.params.shotId);
   if (!shotId.success) return void res.status(400).json({ error: "Invalid shot id" });
-  const row = await ownedShot(res.locals.userId as string, shotId.data);
+  const row = await ownedShot(res.locals.userId as string, shotId.data, "manage");
   if (!row) return void res.status(404).json({ error: "Shot not found" });
   const shotTakes = await db.select({ id: takesTable.id }).from(takesTable).where(eq(takesTable.shotId, row.shot.id));
   const shotTakeIds = shotTakes.map((take) => take.id);
@@ -291,7 +292,7 @@ router.post("/shots/:shotId/takes", async (req, res): Promise<void> => {
   const shotId = idSchema.safeParse(req.params.shotId);
   const body = takeInput.safeParse(req.body);
   if (!shotId.success || !body.success) return void res.status(400).json({ error: "Invalid take" });
-  const row = await ownedShot(res.locals.userId as string, shotId.data);
+  const row = await ownedShot(res.locals.userId as string, shotId.data, "write");
   if (!row) return void res.status(404).json({ error: "Shot not found" });
   const result = await db.transaction(async (tx) => {
     // Lock the shot row so concurrent submissions for the same shot cannot
@@ -387,7 +388,7 @@ router.patch("/takes/:takeId", async (req, res): Promise<void> => {
   const takeId = idSchema.safeParse(req.params.takeId);
   const body = takeUpdate.safeParse(req.body);
   if (!takeId.success || !body.success) return void res.status(400).json({ error: "Invalid take update" });
-  const row = await ownedTake(res.locals.userId as string, takeId.data);
+  const row = await ownedTake(res.locals.userId as string, takeId.data, "write");
   if (!row) return void res.status(404).json({ error: "Take not found" });
   const nextIsReference = body.data.isReference ?? row.take.isReference;
   const nextIsCircle = body.data.status ? body.data.status === "circle" : body.data.isCircle ?? row.take.isCircle;
@@ -471,7 +472,7 @@ router.patch("/takes/:takeId", async (req, res): Promise<void> => {
 router.delete("/takes/:takeId", async (req, res): Promise<void> => {
   const takeId = idSchema.safeParse(req.params.takeId);
   if (!takeId.success) return void res.status(400).json({ error: "Invalid take id" });
-  const row = await ownedTake(res.locals.userId as string, takeId.data);
+  const row = await ownedTake(res.locals.userId as string, takeId.data, "manage");
   if (!row) return void res.status(404).json({ error: "Take not found" });
 
   const [protectedChange] = await db
@@ -519,7 +520,7 @@ router.post("/scenes/:sceneId/continuity", async (req, res): Promise<void> => {
   const sceneId = idSchema.safeParse(req.params.sceneId);
   const body = continuityInput.safeParse(req.body);
   if (!sceneId.success || !body.success) return void res.status(400).json({ error: "Invalid continuity item" });
-  const row = await ownedScene(res.locals.userId as string, sceneId.data);
+  const row = await ownedScene(res.locals.userId as string, sceneId.data, "write");
   if (!row) return void res.status(404).json({ error: "Scene not found" });
   const [item] = await db.insert(continuityItemsTable).values({
     sceneId: row.scene.id,
@@ -534,7 +535,7 @@ router.patch("/continuity/:itemId", async (req, res): Promise<void> => {
   const itemId = idSchema.safeParse(req.params.itemId);
   const body = continuityUpdate.safeParse(req.body);
   if (!itemId.success || !body.success) return void res.status(400).json({ error: "Invalid continuity update" });
-  const row = await ownedContinuityItem(res.locals.userId as string, itemId.data);
+  const row = await ownedContinuityItem(res.locals.userId as string, itemId.data, "write");
   if (!row) return void res.status(404).json({ error: "Continuity item not found" });
   const values = {
     ...body.data,
@@ -549,7 +550,7 @@ router.patch("/continuity/:itemId", async (req, res): Promise<void> => {
 router.delete("/continuity/:itemId", async (req, res): Promise<void> => {
   const itemId = idSchema.safeParse(req.params.itemId);
   if (!itemId.success) return void res.status(400).json({ error: "Invalid continuity item id" });
-  const row = await ownedContinuityItem(res.locals.userId as string, itemId.data);
+  const row = await ownedContinuityItem(res.locals.userId as string, itemId.data, "manage");
   if (!row) return void res.status(404).json({ error: "Continuity item not found" });
   const [protectedChange] = await db
     .select({ id: continuityStateChangesTable.id })
@@ -601,7 +602,7 @@ router.post("/media", async (req, res): Promise<void> => {
     height: z.number().int().positive().optional(),
   }).strict().safeParse(req.body);
   if (!body.success) return void res.status(400).json({ error: "Invalid media metadata" });
-  const [project] = await db.select().from(projectsTable).where(and(eq(projectsTable.id, body.data.projectId), eq(projectsTable.ownerId, res.locals.userId as string))).limit(1);
+  const [project] = await db.select().from(projectsTable).where(and(eq(projectsTable.id, body.data.projectId), projectAccessCondition(res.locals.userId as string, "write"))).limit(1);
   if (!project) return void res.status(404).json({ error: "Project not found" });
   if (body.data.sceneId) {
     const [scene] = await db.select({ id: scenesTable.id }).from(scenesTable).where(and(eq(scenesTable.id, body.data.sceneId), eq(scenesTable.projectId, project.id))).limit(1);
@@ -693,7 +694,7 @@ router.delete("/media/:mediaId", async (req, res): Promise<void> => {
     .select({ media: mediaTable, project: projectsTable })
     .from(mediaTable)
     .innerJoin(projectsTable, eq(mediaTable.projectId, projectsTable.id))
-    .where(and(eq(mediaTable.id, mediaId.data), eq(projectsTable.ownerId, res.locals.userId as string)))
+    .where(and(eq(mediaTable.id, mediaId.data), projectAccessCondition(res.locals.userId as string, "manage")))
     .limit(1);
   if (!media) return void res.status(404).json({ error: "Media not found", code: "MEDIA_NOT_FOUND" });
   if (media.media.takeId) {

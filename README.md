@@ -93,6 +93,7 @@ Development schema changes use Drizzle Kit against Replit PostgreSQL. Replit Pub
 ```text
 TakeKeeper web
   → TakeKeeper API
+  → deployed Vertex AI Agent Engine (`reasoningEngines.query`) for workflow coordination when configured
   → Google Gemini through @google/genai and the ContinuityCheckWorkflow
   → validated TakeKeeper observation and issue tools
   → PostgreSQL / App Storage
@@ -107,9 +108,11 @@ Server-side agent definitions:
 
 Every agent output has a shared Zod schema. Gemini cannot mutate the database. `ContinuityCheckWorkflow` deterministically loads only the relevant scene, shot, take, Continuity Bible, reference observations, current observations, script requirements, and approved changes; it then validates and persists issues through application tools. Tool calls and agent actions are recorded in `agent_events`.
 
+When `AGENT_ENGINE_ID` is configured, every continuity check must successfully call the deployed reasoning engine before local application tools continue. Agent Engine failures fail the analysis safely instead of silently falling back, and the saved take remains available for retry.
+
 ## Authentication foundation
 
-Development uses one fixed, clearly identified demo crew user so local work remains deterministic. It does not accept arbitrary identity headers or pretend to be production authentication. In production, protected routes fail closed until the production identity adapter is configured. Projects are filtered by `owner_id` on every route.
+Development uses one fixed, clearly identified demo crew user so local work remains deterministic. It does not accept arbitrary identity headers or pretend to be production authentication. In production, protected routes fail closed until the production identity adapter is configured. Project authorization uses ownership plus `project_members`: viewers read, editors create/update, admins may perform destructive production/media operations, and only owners may delete a project.
 
 The intended production integration is Replit-managed Clerk. It remains deliberately disabled until production authentication is configured; production requests fail closed.
 
@@ -152,6 +155,8 @@ Local media is stored in `.takekeeper/object-storage` by default. Set `TAKEKEEPE
 | `GOOGLE_CLOUD_PROJECT` | required for hosted agent deployment | Google Cloud project for Agent Builder / Agent Engine |
 | `GOOGLE_CLOUD_LOCATION` | optional | Google Cloud region; defaults to `us-central1` |
 | `AGENT_ENGINE_ID` | required for hosted agent deployment | deployed Agent Engine identifier |
+| `AGENT_ENGINE_CLASS_METHOD` | optional | deployed Agent Engine method; defaults to `query` |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | required for hosted agent deployment | service-account JSON with `aiplatform.reasoningEngines.query`; store only in Replit Secrets |
 
 Do not hardcode credentials. Google application credentials, if required by the final Agent Engine deployment method, belong in Replit Secrets.
 
@@ -178,6 +183,8 @@ Replit workflows run the API server and web app with their required ports and ba
 6. Circle the take, inspect Activity and Agent Activity, generate the Daily Report, then reload and confirm persistence.
 
 AI results are never seeded or hardcoded. The demo requires original/licensed sample media and a configured Gemini credential. See [SUBMISSION.md](SUBMISSION.md) for the final checklist and three-minute script.
+
+Original synthetic Reference A, Take B, and Take C images, a minimal screenplay, machine-readable expected visible state, and the live acceptance procedure are included in [`attached_assets/demo/`](attached_assets/demo/README.md). Validate their integrity with `pnpm --filter @workspace/scripts test:last-cup-fixtures`.
 
 ## Privacy and deletion
 

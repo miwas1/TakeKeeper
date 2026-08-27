@@ -83,9 +83,9 @@ if (!existingShot) {
 
 const continuity = [
   ["wardrobe", "Maya's red jacket", "unzipped"],
-  ["props", "white mug", "on Maya's right"],
-  ["props", "black phone", "face-down beside mug"],
-  ["props", "keys", "behind phone"],
+  ["props", "white mug", "on the camera-right side of Maya"],
+  ["props", "black phone", "immediately camera-right of the mug"],
+  ["props", "keys", "camera-right of the phone"],
 ] as const;
 
 for (const [category, entity, expectedState] of continuity) {

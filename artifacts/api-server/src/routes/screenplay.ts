@@ -34,6 +34,7 @@ import { env } from "../config/env";
 import { analyzeScreenplay } from "../services/google-ai";
 import { findOwnedProject } from "../services/repository";
 import { logger } from "../lib/logger";
+import { projectAccessCondition, type ProjectCapability } from "../services/authorization";
 
 const router: IRouter = Router();
 
@@ -96,12 +97,12 @@ function toResponse(row: typeof screenplaySourcesTable.$inferSelect) {
   };
 }
 
-async function ownedImport(userId: string, importId: string) {
+async function ownedImport(userId: string, importId: string, capability: ProjectCapability = "read") {
   const [row] = await db
     .select({ source: screenplaySourcesTable, project: projectsTable })
     .from(screenplaySourcesTable)
     .innerJoin(projectsTable, eq(screenplaySourcesTable.projectId, projectsTable.id))
-    .where(and(eq(screenplaySourcesTable.id, importId), eq(projectsTable.ownerId, userId)))
+    .where(and(eq(screenplaySourcesTable.id, importId), projectAccessCondition(userId, capability)))
     .limit(1);
   return row;
 }
@@ -235,7 +236,7 @@ router.post("/projects/:projectId/screenplay-import", async (req, res): Promise<
       code: "INVALID_SCREENPLAY",
     });
   }
-  const project = await findOwnedProject(res.locals.userId as string, params.data.projectId);
+  const project = await findOwnedProject(res.locals.userId as string, params.data.projectId, "write");
   if (!project) return void res.status(404).json({ error: "Project not found", code: "PROJECT_NOT_FOUND" });
   const content = body.data.content.replace(/\u0000/g, "").trim();
   if (content.length < 40) {
@@ -271,7 +272,7 @@ router.patch("/screenplay-imports/:importId", async (req, res): Promise<void> =>
   if (duplicate) {
     return void res.status(409).json({ error: `Scene number "${duplicate}" appears more than once. Give every scene a unique number before saving.` });
   }
-  const row = await ownedImport(res.locals.userId as string, params.data.importId);
+  const row = await ownedImport(res.locals.userId as string, params.data.importId, "write");
   if (!row) return void res.status(404).json({ error: "Screenplay import not found" });
   if (row.source.status !== "review") return void res.status(409).json({ error: "Only a screenplay awaiting review can be edited." });
   const analysis = normalizeBreakdown(body.data.analysis);
@@ -298,7 +299,7 @@ router.patch("/screenplay-imports/:importId", async (req, res): Promise<void> =>
 router.post("/screenplay-imports/:importId/retry", async (req, res): Promise<void> => {
   const params = RetryScreenplayImportParams.safeParse(req.params);
   if (!params.success) return void res.status(400).json({ error: "Invalid screenplay import id" });
-  const row = await ownedImport(res.locals.userId as string, params.data.importId);
+  const row = await ownedImport(res.locals.userId as string, params.data.importId, "write");
   if (!row) return void res.status(404).json({ error: "Screenplay import not found" });
   if (row.source.status !== "failed" && row.source.status !== "analyzing") {
     return void res.status(409).json({ error: "Only failed or interrupted analysis can be retried." });
@@ -343,7 +344,7 @@ router.post("/screenplay-imports/:importId", async (req, res): Promise<void> => 
   if (duplicate) {
     return void res.status(409).json({ error: `Scene number "${duplicate}" appears more than once. Give every scene a unique number before approving.` });
   }
-  const row = await ownedImport(res.locals.userId as string, params.data.importId);
+  const row = await ownedImport(res.locals.userId as string, params.data.importId, "write");
   if (!row) return void res.status(404).json({ error: "Screenplay import not found" });
   if (row.source.status !== "review") return void res.status(409).json({ error: "Only a reviewed screenplay can be approved." });
   const analysis = normalizeBreakdown(body.data.analysis);

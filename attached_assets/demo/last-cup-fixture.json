@@ -1,0 +1,16 @@
+{
+  "fixtureVersion": 1,
+  "project": "The Last Cup",
+  "scene": { "number": "1", "slugline": "INT. KITCHEN — NIGHT", "shot": "1A" },
+  "continuityBible": [
+    { "category": "wardrobe", "entity": "Maya's red jacket", "state": "unzipped" },
+    { "category": "props", "entity": "white mug", "state": "on the camera-right side of Maya" },
+    { "category": "props", "entity": "black phone", "state": "immediately camera-right of the mug" },
+    { "category": "props", "entity": "keys", "state": "camera-right of the phone" }
+  ],
+  "media": [
+    { "role": "reference", "label": "Reference A", "file": "last-cup-reference-a.png", "visibleState": { "jacket": "unzipped", "mug": "white" } },
+    { "role": "take", "label": "Take B", "file": "last-cup-take-b.png", "visibleState": { "jacket": "zipped", "mug": "white" }, "humanDecision": { "entity": "Maya's red jacket", "decision": "intentional", "scope": "from_now_on" } },
+    { "role": "take", "label": "Take C", "file": "last-cup-take-c.png", "visibleState": { "jacket": "zipped", "mug": "blue" }, "expectedAcceptance": "The approved zipped jacket is not flagged; the changed mug remains reviewable. Exact model wording and confidence are intentionally not prescribed." }
+  ]
+}

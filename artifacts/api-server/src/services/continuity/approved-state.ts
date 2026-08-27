@@ -26,6 +26,7 @@ import {
   inferObservationVisibility,
   type ApprovedContinuityItem,
 } from "./normalization";
+import { projectAccessCondition, type ProjectCapability } from "../authorization";
 
 export type ApprovedContinuityState = {
   sceneId: string;
@@ -107,14 +108,14 @@ export async function getTakeContext(takeId: string): Promise<TakeContext | null
   return row ?? null;
 }
 
-export async function getOwnedTakeContext(userId: string, takeId: string) {
+export async function getOwnedTakeContext(userId: string, takeId: string, capability: ProjectCapability = "read") {
   const [row] = await db
     .select({ take: takesTable, shot: shotsTable, scene: scenesTable, project: projectsTable })
     .from(takesTable)
     .innerJoin(shotsTable, eq(takesTable.shotId, shotsTable.id))
     .innerJoin(scenesTable, eq(shotsTable.sceneId, scenesTable.id))
     .innerJoin(projectsTable, eq(scenesTable.projectId, projectsTable.id))
-    .where(and(eq(takesTable.id, takeId), eq(projectsTable.ownerId, userId)))
+    .where(and(eq(takesTable.id, takeId), projectAccessCondition(userId, capability)))
     .limit(1);
   return row ?? null;
 }

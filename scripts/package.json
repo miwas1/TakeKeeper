@@ -10,6 +10,9 @@
     "test:phase4-workflow": "tsx ./src/phase4-media-workflow.test.ts",
     "test:phase6-normalization": "tsx ../artifacts/api-server/src/services/continuity/normalization.test.ts",
     "test:phase6-failure-workflow": "tsx ./src/phase6-failure-workflow.test.ts",
+    "test:last-cup-fixtures": "tsx ./src/last-cup-fixtures.test.ts",
+    "test:last-cup-live": "tsx ./src/last-cup-live-workflow.test.ts",
+    "test:authorization": "tsx ../artifacts/api-server/src/services/authorization.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

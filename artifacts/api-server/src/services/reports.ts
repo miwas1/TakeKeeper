@@ -20,6 +20,7 @@ import { generateDailyReport } from "./google-ai";
 import { recordAgentEvent, trackEvent } from "./analytics";
 import { serializeContinuityIssue } from "./continuity/decisions";
 import { collectReportToolContext, createReportToolRuntime } from "../tools/reports";
+import { projectAccessCondition, type ProjectCapability } from "./authorization";
 
 export const dailyReportStatuses = ["not_generated", "generating", "ready", "failed"] as const;
 export const reportToolNames = [
@@ -66,11 +67,11 @@ function safeReportError() {
   return "Couldn't generate the report. Your production records are safe. Try again.";
 }
 
-async function getOwnedProject(userId: string, projectId: string) {
+async function getOwnedProject(userId: string, projectId: string, capability: ProjectCapability = "read") {
   const [project] = await db
     .select()
     .from(projectsTable)
-    .where(and(eq(projectsTable.id, projectId), eq(projectsTable.ownerId, userId)))
+    .where(and(eq(projectsTable.id, projectId), projectAccessCondition(userId, capability)))
     .limit(1);
   return project;
 }
@@ -295,7 +296,7 @@ export async function getDailyReport(userId: string, projectId: string, requeste
 }
 
 export async function generateDailyReportForUser(userId: string, projectId: string, shootDate: string) {
-  const project = await getOwnedProject(userId, projectId);
+  const project = await getOwnedProject(userId, projectId, "write");
   if (!project) return null;
   const facts = await buildDailyReportFacts(projectId, shootDate);
   const now = new Date();

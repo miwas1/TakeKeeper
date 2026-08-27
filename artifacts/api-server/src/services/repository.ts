@@ -9,12 +9,13 @@ import {
   shotsTable,
   takesTable,
 } from "@workspace/db";
+import { projectAccessCondition, type ProjectCapability } from "./authorization";
 
 export async function listOwnedProjects(userId: string) {
   const projects = await db
     .select()
     .from(projectsTable)
-    .where(eq(projectsTable.ownerId, userId))
+    .where(projectAccessCondition(userId, "read"))
     .orderBy(desc(projectsTable.updatedAt));
 
   return Promise.all(
@@ -48,11 +49,11 @@ export async function listOwnedProjects(userId: string) {
   );
 }
 
-export async function findOwnedProject(userId: string, projectId: string) {
+export async function findOwnedProject(userId: string, projectId: string, capability: ProjectCapability = "read") {
   const [project] = await db
     .select()
     .from(projectsTable)
-    .where(and(eq(projectsTable.id, projectId), eq(projectsTable.ownerId, userId)))
+    .where(and(eq(projectsTable.id, projectId), projectAccessCondition(userId, capability)))
     .limit(1);
   return project;
 }
@@ -99,7 +100,7 @@ export async function listOwnedActivity(userId: string, input: {
   agent?: string;
   status?: string;
 }) {
-  const filters = [eq(projectsTable.ownerId, userId)];
+  const filters = [projectAccessCondition(userId, "read")];
   if (input.agent) filters.push(eq(agentEventsTable.agent, input.agent));
   if (input.status) filters.push(eq(agentEventsTable.status, input.status));
   const query = db
@@ -126,7 +127,7 @@ export async function getDashboardCounts(userId: string) {
   const ownedProjects = await db
     .select({ id: projectsTable.id })
     .from(projectsTable)
-    .where(eq(projectsTable.ownerId, userId));
+    .where(projectAccessCondition(userId, "read"));
   const projectIds = ownedProjects.map((project) => project.id);
 
   if (projectIds.length === 0) {

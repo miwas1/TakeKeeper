@@ -12,6 +12,7 @@ import {
   usersTable,
 } from "@workspace/db";
 import { recordAgentEvent, trackEvent } from "../analytics";
+import { projectAccessCondition, type ProjectCapability } from "../authorization";
 import {
   entitySimilarity,
   makeIssueKey,
@@ -97,7 +98,7 @@ function issueDimension(issue: Pick<typeof continuityIssuesTable.$inferSelect, "
   return issue.stateDimension?.includes("|") ? issue.stateDimension : makeIssueDimensionKey(issue);
 }
 
-async function getOwnedIssue(userId: string, issueId: string): Promise<OwnedIssue | null> {
+async function getOwnedIssue(userId: string, issueId: string, capability: ProjectCapability = "write"): Promise<OwnedIssue | null> {
   const [row] = await db
     .select({ issue: continuityIssuesTable, take: takesTable, shot: shotsTable, scene: scenesTable, project: projectsTable })
     .from(continuityIssuesTable)
@@ -105,7 +106,7 @@ async function getOwnedIssue(userId: string, issueId: string): Promise<OwnedIssu
     .innerJoin(shotsTable, eq(takesTable.shotId, shotsTable.id))
     .innerJoin(scenesTable, eq(shotsTable.sceneId, scenesTable.id))
     .innerJoin(projectsTable, eq(scenesTable.projectId, projectsTable.id))
-    .where(and(eq(continuityIssuesTable.id, issueId), eq(projectsTable.ownerId, userId)))
+    .where(and(eq(continuityIssuesTable.id, issueId), projectAccessCondition(userId, capability)))
     .limit(1);
   return row ?? null;
 }
@@ -123,12 +124,12 @@ async function getIssue(issueId: string): Promise<OwnedIssue | null> {
   return row ?? null;
 }
 
-async function getOwnedItem(userId: string, itemId: string) {
+async function getOwnedItem(userId: string, itemId: string, capability: ProjectCapability = "write") {
   const [row] = await db.select({ item: continuityItemsTable, scene: scenesTable, project: projectsTable })
     .from(continuityItemsTable)
     .innerJoin(scenesTable, eq(continuityItemsTable.sceneId, scenesTable.id))
     .innerJoin(projectsTable, eq(scenesTable.projectId, projectsTable.id))
-    .where(and(eq(continuityItemsTable.id, itemId), eq(projectsTable.ownerId, userId)))
+    .where(and(eq(continuityItemsTable.id, itemId), projectAccessCondition(userId, capability)))
     .limit(1);
   return row ?? null;
 }
@@ -495,7 +496,7 @@ export async function markIssueFixedAfterRecheck(input: { issueId: string; takeI
 }
 
 export async function getIssueHistory(userId: string, issueId: string) {
-  const row = await getOwnedIssue(userId, issueId);
+  const row = await getOwnedIssue(userId, issueId, "read");
   if (!row) throw new ContinuityDecisionError("ISSUE_NOT_FOUND", "Continuity issue not found");
   const events = await db.select().from(continuityIssueEventsTable).where(eq(continuityIssueEventsTable.issueId, issueId)).orderBy(asc(continuityIssueEventsTable.createdAt), asc(continuityIssueEventsTable.id));
   const userIds = [...new Set(events.map((event) => event.userId).filter((id): id is string => Boolean(id)))];
@@ -520,7 +521,7 @@ export async function getIssueHistory(userId: string, issueId: string) {
 }
 
 export async function getContinuityHistory(userId: string, sceneId: string, itemId?: string) {
-  const [scene] = await db.select({ scene: scenesTable, project: projectsTable }).from(scenesTable).innerJoin(projectsTable, eq(scenesTable.projectId, projectsTable.id)).where(and(eq(scenesTable.id, sceneId), eq(projectsTable.ownerId, userId))).limit(1);
+  const [scene] = await db.select({ scene: scenesTable, project: projectsTable }).from(scenesTable).innerJoin(projectsTable, eq(scenesTable.projectId, projectsTable.id)).where(and(eq(scenesTable.id, sceneId), projectAccessCondition(userId, "read"))).limit(1);
   if (!scene) throw new ContinuityDecisionError("SCENE_NOT_FOUND", "Scene not found");
   const where = itemId
     ? and(eq(continuityStateChangesTable.sceneId, sceneId), eq(continuityStateChangesTable.continuityItemId, itemId))
