@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import {
   continuityAnalysisRunsTable,
+  continuityIssueEventsTable,
   continuityIssuesTable,
   db,
   mediaTable,
@@ -39,10 +40,13 @@ import {
   findMatchingObservation,
   inferObservationVisibility,
   makeIssueKey,
+  makeIssueDimensionKey,
   normalizeCategory,
+  normalizeState,
   type ComparisonCandidate,
 } from "./normalization";
 import { createContinuityToolRuntime } from "../../tools/continuity";
+import { markIssueFixedAfterRecheck } from "./decisions";
 
 export const continuitySchemaVersion = "continuity-v1";
 
@@ -79,6 +83,8 @@ async function createAnalysisRun(input: {
   shotId: string;
   takeId: string;
   referenceTakeId?: string | null;
+  recheckIssueId?: string | null;
+  requestedByUserId?: string | null;
 }): Promise<AnalysisRun> {
   const [run] = await db.insert(continuityAnalysisRunsTable).values({
     kind: input.kind,
@@ -86,6 +92,8 @@ async function createAnalysisRun(input: {
     shotId: input.shotId,
     takeId: input.takeId,
     referenceTakeId: input.referenceTakeId ?? null,
+    recheckIssueId: input.recheckIssueId ?? null,
+    requestedByUserId: input.requestedByUserId ?? null,
     attemptId: randomUUID(),
     status: "analyzing",
     model: env.GEMINI_MODEL,
@@ -265,40 +273,74 @@ function issueResponse(row: typeof continuityIssuesTable.$inferSelect) {
     issueKey: row.issueKey ?? makeIssueKey(row),
     category: normalizeCategory(row.category),
     entity: row.entity,
-    expectedState: row.expectedState,
-    observedState: row.observedState,
+    expectedState: normalizeState(row.category, row.entity, row.expectedState),
+    observedState: normalizeState(row.category, row.entity, row.observedState),
     severity: ["low", "medium", "high"].includes(severity) ? severity : "medium",
     confidence: Number(row.confidence ?? 0),
     explanation: row.explanation ?? "The observed state differs from the approved continuity state.",
     suggestedFix: row.suggestedFix,
     status: row.status,
+    stateDimension: row.stateDimension?.includes("|") ? row.stateDimension : makeIssueDimensionKey(row),
+    continuityItemId: row.continuityItemId,
+    resolution: row.resolution,
+    notes: row.notes,
+    resolutionTakeId: row.resolutionTakeId,
+    resolvedByUserId: row.resolvedByUserId,
+    resolvedAt: dateString(row.resolvedAt),
   });
 }
 
-async function persistIssue(run: AnalysisRun, draft: ContinuityIssueDraft) {
+async function persistIssue(run: AnalysisRun, draft: ContinuityIssueDraft, continuityItemId?: string | null) {
   const issue = continuityIssueDraftSchema.parse(draft);
   const issueKey = makeIssueKey(issue);
   const existingRows = await db.select().from(continuityIssuesTable).where(eq(continuityIssuesTable.takeId, run.takeId));
-  const resolved = existingRows.find((row) => row.status !== "open" && (row.issueKey ?? makeIssueKey(row)) === issueKey);
-  if (resolved) {
-    const [updated] = await db.update(continuityIssuesTable).set({ analysisRunId: run.id, issueKey }).where(eq(continuityIssuesTable.id, resolved.id)).returning();
-    return updated ?? resolved;
+  const existing = existingRows.find((row) => (row.issueKey ?? makeIssueKey(row)) === issueKey);
+  if (existing) {
+    const [updated] = await db.update(continuityIssuesTable).set({
+      analysisRunId: run.id,
+      issueKey,
+      stateDimension: makeIssueDimensionKey(issue),
+      continuityItemId: continuityItemId ?? existing.continuityItemId,
+      expectedState: normalizeState(issue.category, issue.entity, issue.expectedState),
+      observedState: normalizeState(issue.category, issue.entity, issue.observedState),
+      updatedAt: new Date(),
+    }).where(eq(continuityIssuesTable.id, existing.id)).returning();
+    await db.insert(continuityIssueEventsTable).values({
+      issueId: existing.id,
+      eventType: "detected_again",
+      status: existing.status,
+      metadataJson: { analysisRunId: run.id },
+    });
+    return updated ?? existing;
   }
-  const [created] = await db.insert(continuityIssuesTable).values({
-    analysisRunId: run.id,
-    sceneId: run.sceneId,
-    takeId: run.takeId,
-    category: issue.category,
-    entity: issue.entity,
-    expectedState: issue.expectedState,
-    observedState: issue.observedState,
-    severity: issue.severity,
-    confidence: issue.confidence.toFixed(4),
-    issueKey,
-    explanation: issue.explanation,
-    suggestedFix: issue.suggestedFix,
-    status: "open",
-  }).returning();
+  const created = await db.transaction(async (tx) => {
+    const [inserted] = await tx.insert(continuityIssuesTable).values({
+      analysisRunId: run.id,
+      sceneId: run.sceneId,
+      takeId: run.takeId,
+      category: issue.category,
+      entity: issue.entity,
+      expectedState: normalizeState(issue.category, issue.entity, issue.expectedState),
+      observedState: normalizeState(issue.category, issue.entity, issue.observedState),
+      continuityItemId: continuityItemId ?? null,
+      severity: issue.severity,
+      confidence: issue.confidence.toFixed(4),
+      issueKey,
+      stateDimension: makeIssueDimensionKey(issue),
+      explanation: issue.explanation,
+      suggestedFix: issue.suggestedFix,
+      status: "open",
+    }).returning();
+    if (inserted) {
+      await tx.insert(continuityIssueEventsTable).values({
+        issueId: inserted.id,
+        eventType: "detected",
+        status: "open",
+        metadataJson: { analysisRunId: run.id },
+      });
+    }
+    return inserted;
+  });
   return created;
 }
 
@@ -317,8 +359,8 @@ function sanitizeSupervisorIssues(rawIssues: ContinuityIssueDraft[], candidates:
     const issue = continuityIssueDraftSchema.parse({
       category: normalizeCategory(candidate.item.category),
       entity: candidate.item.entity,
-      expectedState: candidate.item.expectedState,
-      observedState: candidate.observation.observedState,
+      expectedState: normalizeState(candidate.item.category, candidate.item.entity, candidate.item.expectedState),
+      observedState: normalizeState(candidate.item.category, candidate.item.entity, candidate.observation.observedState),
       severity: calibrateSeverity(rawIssue.severity, confidence, candidate),
       confidence,
       explanation: rawIssue.explanation,
@@ -402,7 +444,13 @@ export async function getContinuityCheckResult(takeId: string): Promise<Continui
   const rows = run.status === "completed"
     ? await db.select().from(continuityIssuesTable).where(eq(continuityIssuesTable.analysisRunId, run.id)).orderBy(desc(continuityIssuesTable.createdAt))
     : [];
-  const issues = rows.map(issueResponse);
+  const recheckIssue = run.status === "completed" && run.recheckIssueId
+    ? (await db.select().from(continuityIssuesTable).where(eq(continuityIssuesTable.id, run.recheckIssueId)).limit(1))[0]
+    : undefined;
+  const issues = [
+    ...rows.map(issueResponse),
+    ...(recheckIssue && recheckIssue.status !== "open" && !rows.some((row) => row.id === recheckIssue.id) ? [issueResponse(recheckIssue)] : []),
+  ];
   const checkedAt = run.completedAt ?? run.updatedAt;
   return {
     checkId: run.id,
@@ -432,7 +480,7 @@ async function executeContinuityCheckRun(run: AnalysisRun): Promise<AnalysisRun>
   await recordAgentEvent({
     projectId: context.scene.projectId,
     agent: workflowAgent,
-    action: "continuity_check",
+    action: run.recheckIssueId ? "ContinuitySupervisor → recheck" : "continuity_check",
     toolName: "ContinuityCheckWorkflow",
     status: "started",
     metadata: { analysisRunId: run.id, takeId: run.takeId, referenceTakeId: run.referenceTakeId },
@@ -442,7 +490,7 @@ async function executeContinuityCheckRun(run: AnalysisRun): Promise<AnalysisRun>
     if (!referenceTake) throw new Error("An approved reference is required before checking a take");
     const tools = createContinuityToolRuntime({
       projectId: context.scene.projectId,
-      createIssue: ({ takeId, issue }) => persistIssue(run, issue),
+      createIssue: ({ takeId, issue, continuityItemId }) => persistIssue(run, issue, continuityItemId),
     });
     await tools.get_scene.execute({ sceneId: context.scene.id });
     await tools.get_continuity_bible.execute({ sceneId: context.scene.id });
@@ -470,6 +518,14 @@ async function executeContinuityCheckRun(run: AnalysisRun): Promise<AnalysisRun>
       shotId: context.shot.id,
       takeId: run.takeId,
     }) as Awaited<ReturnType<typeof resolveApprovedContinuityState>>;
+    await recordAgentEvent({
+      projectId: context.scene.projectId,
+      agent: "continuity-state",
+      action: "ContinuityState → resolve_effective_state",
+      toolName: "resolveApprovedContinuityState",
+      status: "completed",
+      metadata: { analysisRunId: run.id, takeId: run.takeId, itemCount: approvedState.items.length, appliedChangeCount: approvedState.previousApprovedChanges.length },
+    });
     // The resolver reuses the approved reference observations. Keep this explicit
     // in the workflow context so the supervisor never has to discover project history.
     approvedState.referenceObservations = referenceObservations;
@@ -517,11 +573,15 @@ async function executeContinuityCheckRun(run: AnalysisRun): Promise<AnalysisRun>
       metadata: { analysisRunId: run.id, returnedIssueCount: supervisor.issues.length },
     });
     const issues = sanitizeSupervisorIssues(supervisor.issues, candidates);
-    await db.delete(continuityIssuesTable).where(and(eq(continuityIssuesTable.takeId, run.takeId), eq(continuityIssuesTable.status, "open")));
     const persisted = [] as Array<typeof continuityIssuesTable.$inferSelect>;
     for (const issue of issues) {
-      const created = await tools.create_issue.execute({ takeId: run.takeId, issue });
-      if (created && typeof created === "object" && "id" in created) persisted.push(created as typeof continuityIssuesTable.$inferSelect);
+      const candidate = findMatchingCandidate(issue, candidates);
+      const created = await tools.create_issue.execute({ takeId: run.takeId, issue, continuityItemId: candidate?.item.id ?? null });
+      if (created && typeof created === "object" && "id" in created) {
+        const persistedIssue = created as typeof continuityIssuesTable.$inferSelect;
+        persisted.push(persistedIssue);
+        await trackEvent({ projectId: context.scene.projectId, name: "issue_detected", metadata: { issueId: persistedIssue.id, analysisRunId: run.id, takeId: run.takeId } });
+      }
     }
     const updated = await updateRun(run.id, {
       status: "completed",
@@ -530,10 +590,18 @@ async function executeContinuityCheckRun(run: AnalysisRun): Promise<AnalysisRun>
       latencyMs: Date.now() - startedAt,
       errorMetadataJson: { candidateCount: candidates.length, issueCount: persisted.length },
     });
+    if (run.recheckIssueId) {
+      await markIssueFixedAfterRecheck({
+        issueId: run.recheckIssueId,
+        takeId: run.takeId,
+        analysisRunId: run.id,
+        userId: run.requestedByUserId ?? "dev-user",
+      });
+    }
     await recordAgentEvent({
       projectId: context.scene.projectId,
       agent: workflowAgent,
-      action: "continuity_check",
+      action: run.recheckIssueId ? "ContinuitySupervisor → recheck" : "continuity_check",
       toolName: "ContinuityCheckWorkflow",
       status: "completed",
       latencyMs: Date.now() - startedAt,
@@ -552,7 +620,7 @@ async function executeContinuityCheckRun(run: AnalysisRun): Promise<AnalysisRun>
     await recordAgentEvent({
       projectId: context.scene.projectId,
       agent: workflowAgent,
-      action: "continuity_check",
+      action: run.recheckIssueId ? "ContinuitySupervisor → recheck" : "continuity_check",
       toolName: "ContinuityCheckWorkflow",
       status: "failed",
       latencyMs: Date.now() - startedAt,
@@ -563,7 +631,7 @@ async function executeContinuityCheckRun(run: AnalysisRun): Promise<AnalysisRun>
   }
 }
 
-export async function startContinuityCheck(takeId: string, retry = false): Promise<AnalysisRun> {
+export async function startContinuityCheck(takeId: string, retry = false, options: { recheckIssueId?: string | null; requestedByUserId?: string | null } = {}): Promise<AnalysisRun> {
   const context = await getTakeContext(takeId);
   if (!context) throw new Error("Take not found");
   if (context.take.isReference) throw new Error("The approved reference does not need a continuity check");
@@ -579,6 +647,8 @@ export async function startContinuityCheck(takeId: string, retry = false): Promi
     shotId: context.shot.id,
     takeId,
     referenceTakeId: referenceTake.id,
+    recheckIssueId: options.recheckIssueId ?? null,
+    requestedByUserId: options.requestedByUserId ?? null,
   });
   await trackEvent({ projectId: context.scene.projectId, name: "continuity_check_started", metadata: { analysisRunId: run.id, takeId } });
   const promise = executeContinuityCheckRun(run).finally(() => continuityRunsInFlight.delete(takeId));
@@ -587,7 +657,7 @@ export async function startContinuityCheck(takeId: string, retry = false): Promi
   return run;
 }
 
-export async function runContinuityCheckWorkflow(takeId: string, retry = false): Promise<AnalysisRun> {
+export async function runContinuityCheckWorkflow(takeId: string, retry = false, options: { recheckIssueId?: string | null; requestedByUserId?: string | null } = {}): Promise<AnalysisRun> {
   const inFlight = continuityRunsInFlight.get(takeId);
   if (inFlight) return inFlight;
   const latest = await getLatestAnalysisRun(takeId, "continuity_check");
@@ -597,7 +667,7 @@ export async function runContinuityCheckWorkflow(takeId: string, retry = false):
   if (!context) throw new Error("Take not found");
   const referenceTake = await getReferenceTake(context.shot.id);
   if (!referenceTake) throw new Error("An approved reference is required before checking a take");
-  const run = await createAnalysisRun({ kind: "continuity_check", sceneId: context.scene.id, shotId: context.shot.id, takeId, referenceTakeId: referenceTake.id });
+  const run = await createAnalysisRun({ kind: "continuity_check", sceneId: context.scene.id, shotId: context.shot.id, takeId, referenceTakeId: referenceTake.id, recheckIssueId: options.recheckIssueId ?? null, requestedByUserId: options.requestedByUserId ?? null });
   const promise = executeContinuityCheckRun(run).finally(() => continuityRunsInFlight.delete(takeId));
   continuityRunsInFlight.set(takeId, promise);
   return promise;

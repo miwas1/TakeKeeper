@@ -8,6 +8,7 @@ export type ApprovedContinuityItem = {
   category: string;
   entity: string;
   expectedState: string;
+  originalState?: string;
   sourceType: string;
   confidence: number | null;
   active: boolean;
@@ -46,8 +47,8 @@ const categoryAliases: Record<string, string> = {
 };
 
 const stateAliases: Array<[string, string[]]> = [
-  ["open", ["open", "unzipped", "unzip", "unbuttoned", "unfastened", "zipper down"]],
-  ["closed", ["closed", "zipped", "zippered", "fastened", "buttoned", "zipper up"]],
+  ["open", ["open", "open jacket", "unzipped", "unzipped jacket", "unzip", "unbuttoned", "unfastened", "zipper down", "zip down"]],
+  ["closed", ["closed", "closed jacket", "zipped", "zipped jacket", "zippered", "zip it", "zip up", "close", "fastened", "buttoned", "zipper up"]],
   ["face_down", ["face down", "face-down", "screen down", "screen-down"]],
   ["face_up", ["face up", "face-up", "screen up", "screen-up"]],
   ["actor_right", ["actor right", "actor_right", "right of actor", "right_of_actor", "maya's right", "mayas right", "performer's right", "performers right"]],
@@ -136,6 +137,18 @@ export function normalizeState(category: string, entity: string, value: string):
   return cleaned;
 }
 
+export function stateDimension(category: string, entity: string, value: string): string {
+  const normalizedCategory = normalizeCategory(category);
+  const normalizedEntity = normalizeEntity(entity);
+  const normalizedState = normalizeState(category, entity, value);
+  if ((normalizedCategory === "wardrobe" || /jacket|shirt|coat|zip|dress|hoodie/.test(normalizedEntity)) && ["open", "closed"].includes(normalizedState)) {
+    return "closure";
+  }
+  if (["face_up", "face_down"].includes(normalizedState)) return "orientation";
+  if (["actor_right", "actor_left", "next_to", "behind", "in_front"].includes(normalizedState)) return "position";
+  return "state";
+}
+
 export function inferObservationVisibility(observation: Pick<VisualObservation, "observedState" | "visibility">): VisualObservation["visibility"] {
   if (observation.visibility !== "visible") return observation.visibility;
   const state = cleanText(observation.observedState);
@@ -220,6 +233,59 @@ export function makeIssueKey(input: { category: string; entity: string; expected
     normalizeState(input.category, input.entity, input.expectedState),
     normalizeState(input.category, input.entity, input.observedState),
   ].join("|");
+}
+
+export function makeIssueDimensionKey(input: { category: string; entity: string; expectedState: string; observedState: string }): string {
+  return `${normalizeCategory(input.category)}|${normalizeEntity(input.entity)}|${stateDimension(input.category, input.entity, input.expectedState)}`;
+}
+
+export function makeIntentionalDecisionKey(input: {
+  sceneId: string;
+  category: string;
+  entity: string;
+  sourceTakeId: string;
+  effectiveFromTakeId: string;
+  effectiveUntilTakeId?: string | null;
+  effectiveScope: string;
+  newState: string;
+}): string {
+  return [
+    "intentional",
+    input.sceneId,
+    makeIssueDimensionKey({
+      category: input.category,
+      entity: input.entity,
+      expectedState: input.newState,
+      observedState: input.newState,
+    }),
+    input.sourceTakeId,
+    input.effectiveFromTakeId,
+    input.effectiveUntilTakeId ?? "",
+    input.effectiveScope,
+    normalizeState(input.category, input.entity, input.newState),
+  ].join(":");
+}
+
+export function effectiveScopeApplies(input: {
+  scope: string;
+  changeSceneId: string;
+  currentSceneId: string;
+  effectiveFromShotId: string;
+  currentShotId: string;
+  currentOrder: number;
+  effectiveFromOrder: number;
+  effectiveUntilOrder?: number | null;
+}): boolean {
+  if (input.changeSceneId !== input.currentSceneId) return false;
+  const scope = input.scope === "shot" || input.scope === "this_shot"
+    ? "this_shot"
+    : input.scope === "scene" || input.scope === "rest_of_scene"
+      ? "rest_of_scene"
+      : "from_now_on";
+  if (scope === "this_shot" && input.effectiveFromShotId !== input.currentShotId) return false;
+  if (input.currentOrder < input.effectiveFromOrder) return false;
+  if (input.effectiveUntilOrder !== null && input.effectiveUntilOrder !== undefined && input.currentOrder > input.effectiveUntilOrder) return false;
+  return true;
 }
 
 export function findMatchingCandidate(

@@ -93,22 +93,33 @@ export async function listProjectScenes(projectId: string) {
   );
 }
 
-export async function listOwnedActivity(userId: string, limit: number) {
-  return db
+export async function listOwnedActivity(userId: string, input: {
+  limit: number;
+  offset?: number;
+  agent?: string;
+  status?: string;
+}) {
+  const filters = [eq(projectsTable.ownerId, userId)];
+  if (input.agent) filters.push(eq(agentEventsTable.agent, input.agent));
+  if (input.status) filters.push(eq(agentEventsTable.status, input.status));
+  const query = db
     .select({
       id: agentEventsTable.id,
       agent: agentEventsTable.agent,
       action: agentEventsTable.action,
+      toolName: agentEventsTable.toolName,
       status: agentEventsTable.status,
       latencyMs: agentEventsTable.latencyMs,
       createdAt: agentEventsTable.createdAt,
       projectTitle: projectsTable.title,
+      metadata: agentEventsTable.metadataJson,
     })
     .from(agentEventsTable)
     .innerJoin(projectsTable, eq(agentEventsTable.projectId, projectsTable.id))
-    .where(eq(projectsTable.ownerId, userId))
+    .where(and(...filters))
     .orderBy(desc(agentEventsTable.createdAt))
-    .limit(limit);
+    .limit(input.limit);
+  return input.offset ? query.offset(input.offset) : query;
 }
 
 export async function getDashboardCounts(userId: string) {

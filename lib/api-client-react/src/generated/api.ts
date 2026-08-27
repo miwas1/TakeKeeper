@@ -25,11 +25,20 @@ import type {
   ContinuityChangeInput,
   ContinuityCheck,
   ContinuityCheckInput,
+  ContinuityDecision,
+  ContinuityDecisionResponse,
+  ContinuityHistoryEntry,
+  ContinuityIssue,
+  ContinuityIssueDecisionInput,
+  ContinuityIssueHistory,
+  ContinuityIssueNoteInput,
   ContinuityItem,
   ContinuityItemInput,
   ContinuityItemUpdate,
+  ContinuityRecheckInput,
   DailyReport,
   Dashboard,
+  GenerateDailyReportInput,
   GetDailyReportParams,
   HealthStatus,
   ListActivityParams,
@@ -1802,6 +1811,83 @@ export const useCreateContinuityItem = <TError = ErrorType<unknown>,
       return useMutation(getCreateContinuityItemMutationOptions(options));
     }
 
+export const getGetContinuityHistoryUrl = (sceneId: string,) => {
+
+
+
+
+  return `/api/scenes/${sceneId}/continuity/history`
+}
+
+/**
+ * @summary List approved continuity state history for a scene
+ */
+export const getContinuityHistory = async (sceneId: string, options?: Parameters<typeof customFetch>[1]): Promise<ContinuityHistoryEntry[]> => {
+
+  return customFetch<ContinuityHistoryEntry[]>(getGetContinuityHistoryUrl(sceneId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetContinuityHistoryQueryKey = (sceneId: string,) => {
+    return [
+    `/api/scenes/${sceneId}/continuity/history`
+    ] as const;
+    }
+
+
+export const getGetContinuityHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getContinuityHistory>>, TError = ErrorType<NotFoundResponse>>(sceneId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getContinuityHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetContinuityHistoryQueryKey(sceneId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getContinuityHistory>>> = ({ signal }) => getContinuityHistory(sceneId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: sceneId !== null && sceneId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getContinuityHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetContinuityHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getContinuityHistory>>>
+export type GetContinuityHistoryQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary List approved continuity state history for a scene
+ */
+
+export function useGetContinuityHistory<TData = Awaited<ReturnType<typeof getContinuityHistory>>, TError = ErrorType<NotFoundResponse>>(
+ sceneId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getContinuityHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetContinuityHistoryQueryOptions(sceneId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getUpdateContinuityItemUrl = (itemId: string,) => {
 
 
@@ -2015,6 +2101,443 @@ export const useCreateContinuityChange = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateContinuityChangeMutationOptions(options));
+    }
+
+export const getDecideContinuityIssueUrl = (issueId: string,) => {
+
+
+
+
+  return `/api/continuity/issues/${issueId}`
+}
+
+/**
+ * @summary Record a human continuity issue decision
+ */
+export const decideContinuityIssue = async (issueId: string,
+    continuityIssueDecisionInput: ContinuityIssueDecisionInput, options?: Parameters<typeof customFetch>[1]): Promise<ContinuityDecisionResponse> => {
+
+  return customFetch<ContinuityDecisionResponse>(getDecideContinuityIssueUrl(issueId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(continuityIssueDecisionInput)
+  }
+);}
+
+
+
+
+
+export const getDecideContinuityIssueMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideContinuityIssue>>, TError,{issueId: string;data: BodyType<ContinuityIssueDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideContinuityIssue>>, TError,{issueId: string;data: BodyType<ContinuityIssueDecisionInput>}, TContext> => {
+
+const mutationKey = ['decideContinuityIssue'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideContinuityIssue>>, {issueId: string;data: BodyType<ContinuityIssueDecisionInput>}> = (props) => {
+          const {issueId,data} = props ?? {};
+
+          return  decideContinuityIssue(issueId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideContinuityIssueMutationResult = NonNullable<Awaited<ReturnType<typeof decideContinuityIssue>>>
+    export type DecideContinuityIssueMutationBody = BodyType<ContinuityIssueDecisionInput>
+    export type DecideContinuityIssueMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Record a human continuity issue decision
+ */
+export const useDecideContinuityIssue = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideContinuityIssue>>, TError,{issueId: string;data: BodyType<ContinuityIssueDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideContinuityIssue>>,
+        TError,
+        {issueId: string;data: BodyType<ContinuityIssueDecisionInput>},
+        TContext
+      > => {
+      return useMutation(getDecideContinuityIssueMutationOptions(options));
+    }
+
+export const getGetContinuityIssueHistoryUrl = (issueId: string,) => {
+
+
+
+
+  return `/api/continuity/issues/${issueId}/history`
+}
+
+/**
+ * @summary List issue decisions and notes
+ */
+export const getContinuityIssueHistory = async (issueId: string, options?: Parameters<typeof customFetch>[1]): Promise<ContinuityIssueHistory> => {
+
+  return customFetch<ContinuityIssueHistory>(getGetContinuityIssueHistoryUrl(issueId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetContinuityIssueHistoryQueryKey = (issueId: string,) => {
+    return [
+    `/api/continuity/issues/${issueId}/history`
+    ] as const;
+    }
+
+
+export const getGetContinuityIssueHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getContinuityIssueHistory>>, TError = ErrorType<NotFoundResponse>>(issueId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getContinuityIssueHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetContinuityIssueHistoryQueryKey(issueId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getContinuityIssueHistory>>> = ({ signal }) => getContinuityIssueHistory(issueId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: issueId !== null && issueId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getContinuityIssueHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetContinuityIssueHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getContinuityIssueHistory>>>
+export type GetContinuityIssueHistoryQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary List issue decisions and notes
+ */
+
+export function useGetContinuityIssueHistory<TData = Awaited<ReturnType<typeof getContinuityIssueHistory>>, TError = ErrorType<NotFoundResponse>>(
+ issueId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getContinuityIssueHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetContinuityIssueHistoryQueryOptions(issueId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddContinuityIssueNoteUrl = (issueId: string,) => {
+
+
+
+
+  return `/api/continuity/issues/${issueId}/notes`
+}
+
+/**
+ * @summary Add a note to a continuity issue
+ */
+export const addContinuityIssueNote = async (issueId: string,
+    continuityIssueNoteInput: ContinuityIssueNoteInput, options?: Parameters<typeof customFetch>[1]): Promise<ContinuityIssue> => {
+
+  return customFetch<ContinuityIssue>(getAddContinuityIssueNoteUrl(issueId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(continuityIssueNoteInput)
+  }
+);}
+
+
+
+
+
+export const getAddContinuityIssueNoteMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addContinuityIssueNote>>, TError,{issueId: string;data: BodyType<ContinuityIssueNoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addContinuityIssueNote>>, TError,{issueId: string;data: BodyType<ContinuityIssueNoteInput>}, TContext> => {
+
+const mutationKey = ['addContinuityIssueNote'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addContinuityIssueNote>>, {issueId: string;data: BodyType<ContinuityIssueNoteInput>}> = (props) => {
+          const {issueId,data} = props ?? {};
+
+          return  addContinuityIssueNote(issueId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddContinuityIssueNoteMutationResult = NonNullable<Awaited<ReturnType<typeof addContinuityIssueNote>>>
+    export type AddContinuityIssueNoteMutationBody = BodyType<ContinuityIssueNoteInput>
+    export type AddContinuityIssueNoteMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a note to a continuity issue
+ */
+export const useAddContinuityIssueNote = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addContinuityIssueNote>>, TError,{issueId: string;data: BodyType<ContinuityIssueNoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addContinuityIssueNote>>,
+        TError,
+        {issueId: string;data: BodyType<ContinuityIssueNoteInput>},
+        TContext
+      > => {
+      return useMutation(getAddContinuityIssueNoteMutationOptions(options));
+    }
+
+export const getIgnoreContinuityIssueUrl = (issueId: string,) => {
+
+
+
+
+  return `/api/continuity/issues/${issueId}/ignore`
+}
+
+/**
+ * @summary Ignore a continuity issue
+ */
+export const ignoreContinuityIssue = async (issueId: string,
+    continuityIssueNoteInput?: ContinuityIssueNoteInput, options?: Parameters<typeof customFetch>[1]): Promise<ContinuityIssue> => {
+
+  return customFetch<ContinuityIssue>(getIgnoreContinuityIssueUrl(issueId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(continuityIssueNoteInput)
+  }
+);}
+
+
+
+
+
+export const getIgnoreContinuityIssueMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ignoreContinuityIssue>>, TError,{issueId: string;data?: BodyType<ContinuityIssueNoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof ignoreContinuityIssue>>, TError,{issueId: string;data?: BodyType<ContinuityIssueNoteInput>}, TContext> => {
+
+const mutationKey = ['ignoreContinuityIssue'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof ignoreContinuityIssue>>, {issueId: string;data?: BodyType<ContinuityIssueNoteInput>}> = (props) => {
+          const {issueId,data} = props ?? {};
+
+          return  ignoreContinuityIssue(issueId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type IgnoreContinuityIssueMutationResult = NonNullable<Awaited<ReturnType<typeof ignoreContinuityIssue>>>
+    export type IgnoreContinuityIssueMutationBody = BodyType<ContinuityIssueNoteInput> | undefined
+    export type IgnoreContinuityIssueMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Ignore a continuity issue
+ */
+export const useIgnoreContinuityIssue = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ignoreContinuityIssue>>, TError,{issueId: string;data?: BodyType<ContinuityIssueNoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof ignoreContinuityIssue>>,
+        TError,
+        {issueId: string;data?: BodyType<ContinuityIssueNoteInput>},
+        TContext
+      > => {
+      return useMutation(getIgnoreContinuityIssueMutationOptions(options));
+    }
+
+export const getApproveContinuityIssueChangeUrl = (issueId: string,) => {
+
+
+
+
+  return `/api/continuity/issues/${issueId}/intentional`
+}
+
+/**
+ * @summary Approve an intentional continuity change
+ */
+export const approveContinuityIssueChange = async (issueId: string,
+    continuityChangeInput: ContinuityChangeInput, options?: Parameters<typeof customFetch>[1]): Promise<ContinuityDecision> => {
+
+  return customFetch<ContinuityDecision>(getApproveContinuityIssueChangeUrl(issueId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(continuityChangeInput)
+  }
+);}
+
+
+
+
+
+export const getApproveContinuityIssueChangeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveContinuityIssueChange>>, TError,{issueId: string;data: BodyType<ContinuityChangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveContinuityIssueChange>>, TError,{issueId: string;data: BodyType<ContinuityChangeInput>}, TContext> => {
+
+const mutationKey = ['approveContinuityIssueChange'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveContinuityIssueChange>>, {issueId: string;data: BodyType<ContinuityChangeInput>}> = (props) => {
+          const {issueId,data} = props ?? {};
+
+          return  approveContinuityIssueChange(issueId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveContinuityIssueChangeMutationResult = NonNullable<Awaited<ReturnType<typeof approveContinuityIssueChange>>>
+    export type ApproveContinuityIssueChangeMutationBody = BodyType<ContinuityChangeInput>
+    export type ApproveContinuityIssueChangeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Approve an intentional continuity change
+ */
+export const useApproveContinuityIssueChange = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveContinuityIssueChange>>, TError,{issueId: string;data: BodyType<ContinuityChangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveContinuityIssueChange>>,
+        TError,
+        {issueId: string;data: BodyType<ContinuityChangeInput>},
+        TContext
+      > => {
+      return useMutation(getApproveContinuityIssueChangeMutationOptions(options));
+    }
+
+export const getRecheckContinuityIssueUrl = (issueId: string,) => {
+
+
+
+
+  return `/api/continuity/issues/${issueId}/recheck`
+}
+
+/**
+ * @summary Run a new continuity check for an issue
+ */
+export const recheckContinuityIssue = async (issueId: string,
+    continuityRecheckInput: ContinuityRecheckInput, options?: Parameters<typeof customFetch>[1]): Promise<ContinuityCheck> => {
+
+  return customFetch<ContinuityCheck>(getRecheckContinuityIssueUrl(issueId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(continuityRecheckInput)
+  }
+);}
+
+
+
+
+
+export const getRecheckContinuityIssueMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recheckContinuityIssue>>, TError,{issueId: string;data: BodyType<ContinuityRecheckInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recheckContinuityIssue>>, TError,{issueId: string;data: BodyType<ContinuityRecheckInput>}, TContext> => {
+
+const mutationKey = ['recheckContinuityIssue'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recheckContinuityIssue>>, {issueId: string;data: BodyType<ContinuityRecheckInput>}> = (props) => {
+          const {issueId,data} = props ?? {};
+
+          return  recheckContinuityIssue(issueId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecheckContinuityIssueMutationResult = NonNullable<Awaited<ReturnType<typeof recheckContinuityIssue>>>
+    export type RecheckContinuityIssueMutationBody = BodyType<ContinuityRecheckInput>
+    export type RecheckContinuityIssueMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Run a new continuity check for an issue
+ */
+export const useRecheckContinuityIssue = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recheckContinuityIssue>>, TError,{issueId: string;data: BodyType<ContinuityRecheckInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recheckContinuityIssue>>,
+        TError,
+        {issueId: string;data: BodyType<ContinuityRecheckInput>},
+        TContext
+      > => {
+      return useMutation(getRecheckContinuityIssueMutationOptions(options));
     }
 
 export const getRequestUploadUrlUrl = () => {
@@ -2246,7 +2769,7 @@ export const getGetDailyReportUrl = (params: GetDailyReportParams,) => {
 }
 
 /**
- * @summary Get the daily report shell
+ * @summary Get a persisted daily production report
  */
 export const getDailyReport = async (params: GetDailyReportParams, options?: Parameters<typeof customFetch>[1]): Promise<DailyReport> => {
 
@@ -2293,7 +2816,7 @@ export type GetDailyReportQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Get the daily report shell
+ * @summary Get a persisted daily production report
  */
 
 export function useGetDailyReport<TData = Awaited<ReturnType<typeof getDailyReport>>, TError = ErrorType<unknown>>(
@@ -2313,6 +2836,77 @@ export function useGetDailyReport<TData = Awaited<ReturnType<typeof getDailyRepo
 
 
 
+
+export const getGenerateDailyReportUrl = () => {
+
+
+
+
+  return `/api/reports/daily`
+}
+
+/**
+ * @summary Generate and persist a daily production report
+ */
+export const generateDailyReport = async (generateDailyReportInput: GenerateDailyReportInput, options?: Parameters<typeof customFetch>[1]): Promise<DailyReport> => {
+
+  return customFetch<DailyReport>(getGenerateDailyReportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(generateDailyReportInput)
+  }
+);}
+
+
+
+
+
+export const getGenerateDailyReportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateDailyReport>>, TError,{data: BodyType<GenerateDailyReportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateDailyReport>>, TError,{data: BodyType<GenerateDailyReportInput>}, TContext> => {
+
+const mutationKey = ['generateDailyReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateDailyReport>>, {data: BodyType<GenerateDailyReportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateDailyReport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateDailyReportMutationResult = NonNullable<Awaited<ReturnType<typeof generateDailyReport>>>
+    export type GenerateDailyReportMutationBody = BodyType<GenerateDailyReportInput>
+    export type GenerateDailyReportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate and persist a daily production report
+ */
+export const useGenerateDailyReport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateDailyReport>>, TError,{data: BodyType<GenerateDailyReportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateDailyReport>>,
+        TError,
+        {data: BodyType<GenerateDailyReportInput>},
+        TContext
+      > => {
+      return useMutation(getGenerateDailyReportMutationOptions(options));
+    }
 
 export const getGetScreenplayImportUrl = (projectId: string,) => {
 

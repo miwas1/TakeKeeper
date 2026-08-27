@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import {
   continuityAnalysisRunsTable,
   continuityItemsTable,
@@ -9,6 +9,7 @@ import {
   scenesTable,
   shotsTable,
   takesTable,
+  usersTable,
 } from "@workspace/db";
 import {
   analysisRunKinds,
@@ -17,8 +18,11 @@ import {
   visualObservationSchema,
 } from "@workspace/takekeeper-domain";
 import {
+  areStatesEquivalent,
+  effectiveScopeApplies,
   normalizeCategory,
   normalizeEntity,
+  normalizeState,
   inferObservationVisibility,
   type ApprovedContinuityItem,
 } from "./normalization";
@@ -36,9 +40,13 @@ export type ApprovedContinuityState = {
     continuityItemId: string;
     previousState: string;
     newState: string;
-    effectiveScope: string;
+    effectiveScope: "this_shot" | "rest_of_scene" | "from_now_on";
     effectiveFromTakeId: string;
+    effectiveUntilTakeId: string | null;
+    supersedesChangeId: string | null;
     sourceTakeId: string;
+    userId: string;
+    reason: string | null;
     createdAt: Date;
   }>;
 };
@@ -48,6 +56,27 @@ export type TakeContext = {
   shot: typeof shotsTable.$inferSelect;
   scene: typeof scenesTable.$inferSelect;
   project: typeof projectsTable.$inferSelect;
+};
+
+export type ApprovedChange = {
+  id: string;
+  sceneId: string;
+  continuityItemId: string;
+  previousState: string;
+  newState: string;
+  effectiveScope: "this_shot" | "rest_of_scene" | "from_now_on";
+  effectiveFromTakeId: string;
+  effectiveUntilTakeId: string | null;
+  supersedesChangeId: string | null;
+  sourceTakeId: string;
+  userId: string;
+  reason: string | null;
+  createdAt: Date;
+};
+
+type SceneTake = {
+  take: typeof takesTable.$inferSelect;
+  shot: typeof shotsTable.$inferSelect;
 };
 
 function numeric(value: string | number | null): number | null {
@@ -160,12 +189,21 @@ function itemKey(category: string, entity: string): string {
   return `${normalizeCategory(category)}|${normalizeEntity(entity)}`;
 }
 
+export function normalizedScope(scope: string): "this_shot" | "rest_of_scene" | "from_now_on" {
+  if (scope === "shot" || scope === "this_shot") return "this_shot";
+  if (scope === "scene" || scope === "rest_of_scene") return "rest_of_scene";
+  return "from_now_on";
+}
+
 function itemFromRow(row: typeof continuityItemsTable.$inferSelect): ApprovedContinuityItem & { updatedAt: Date } {
+  const category = normalizeCategory(row.category);
+  const originalState = normalizeState(category, row.entity, row.expectedState);
   return {
     id: row.id,
-    category: normalizeCategory(row.category),
+    category,
     entity: row.entity,
-    expectedState: row.expectedState,
+    expectedState: originalState,
+    originalState,
     sourceType: row.sourceType,
     confidence: numeric(row.confidence),
     active: row.active,
@@ -181,52 +219,122 @@ function chooseItem(current: (ApprovedContinuityItem & { updatedAt: Date }) | un
   return current;
 }
 
-function normalizedScope(scope: string): "this_shot" | "rest_of_scene" | "from_now_on" {
-  if (scope === "shot" || scope === "this_shot") return "this_shot";
-  if (scope === "scene" || scope === "rest_of_scene") return "rest_of_scene";
-  return "from_now_on";
+async function getSceneTakes(sceneId: string): Promise<SceneTake[]> {
+  return db
+    .select({ take: takesTable, shot: shotsTable })
+    .from(takesTable)
+    .innerJoin(shotsTable, eq(takesTable.shotId, shotsTable.id))
+    .where(eq(shotsTable.sceneId, sceneId))
+    .orderBy(
+      asc(shotsTable.createdAt),
+      asc(shotsTable.id),
+      asc(takesTable.takeNumber),
+      asc(takesTable.createdAt),
+      asc(takesTable.id),
+  );
+}
+
+export async function isTakeAtOrAfter(sceneId: string, effectiveFromTakeId: string, effectiveUntilTakeId: string): Promise<boolean> {
+  const sceneTakes = await getSceneTakes(sceneId);
+  const order = new Map(sceneTakes.map((entry, index) => [entry.take.id, index]));
+  const fromOrder = order.get(effectiveFromTakeId);
+  const untilOrder = order.get(effectiveUntilTakeId);
+  return fromOrder !== undefined && untilOrder !== undefined && untilOrder >= fromOrder;
+}
+
+function compareTakeOrder(left: SceneTake, right: SceneTake, shotOrder: Map<string, number>): number {
+  const shotDifference = (shotOrder.get(left.shot.id) ?? Number.MAX_SAFE_INTEGER) - (shotOrder.get(right.shot.id) ?? Number.MAX_SAFE_INTEGER);
+  if (shotDifference !== 0) return shotDifference;
+  if (left.take.takeNumber !== right.take.takeNumber) return left.take.takeNumber - right.take.takeNumber;
+  const capturedDifference = left.take.capturedAt.getTime() - right.take.capturedAt.getTime();
+  if (capturedDifference !== 0) return capturedDifference;
+  return left.take.id.localeCompare(right.take.id);
 }
 
 function changeApplies(
   change: typeof continuityStateChangesTable.$inferSelect,
-  current: TakeContext,
-  sourceTake: { take: typeof takesTable.$inferSelect; shot: typeof shotsTable.$inferSelect } | undefined,
+  current: SceneTake,
+  takeById: Map<string, SceneTake>,
+  takeOrder: Map<string, number>,
 ): boolean {
-  if (!sourceTake || sourceTake.shot.sceneId !== current.scene.id) return false;
-  const scope = normalizedScope(change.effectiveScope);
-  if (scope === "this_shot" && sourceTake.take.shotId !== current.shot.id) return false;
-  if (sourceTake.take.shotId === current.shot.id && current.take.takeNumber < sourceTake.take.takeNumber) return false;
-  if (sourceTake.take.shotId !== current.shot.id && current.take.capturedAt < sourceTake.take.capturedAt) return false;
-  return true;
+  const effectiveFrom = takeById.get(change.effectiveFromTakeId) ?? takeById.get(change.sourceTakeId);
+  if (!effectiveFrom || effectiveFrom.shot.sceneId !== current.shot.sceneId) return false;
+  return effectiveScopeApplies({
+    scope: change.effectiveScope,
+    changeSceneId: effectiveFrom.shot.sceneId,
+    currentSceneId: current.shot.sceneId,
+    effectiveFromShotId: effectiveFrom.shot.id,
+    currentShotId: current.shot.id,
+    currentOrder: takeOrder.get(current.take.id) ?? Number.MAX_SAFE_INTEGER,
+    effectiveFromOrder: takeOrder.get(effectiveFrom.take.id) ?? Number.MAX_SAFE_INTEGER,
+    effectiveUntilOrder: change.effectiveUntilTakeId ? takeOrder.get(change.effectiveUntilTakeId) ?? null : null,
+  });
 }
 
-export async function getApprovedChanges(sceneId: string, shotId: string, takeId: string) {
-  const current = await getTakeContext(takeId);
-  if (!current || current.scene.id !== sceneId || current.shot.id !== shotId) return [];
-  const changes = await db
-    .select()
-    .from(continuityStateChangesTable)
-    .where(eq(continuityStateChangesTable.sceneId, sceneId))
-    .orderBy(continuityStateChangesTable.createdAt);
-  const sourceTakeIds = [...new Set(changes.map((change) => change.sourceTakeId))];
-  const sourceTakes = sourceTakeIds.length
-    ? await db
-        .select({ take: takesTable, shot: shotsTable })
-        .from(takesTable)
-        .innerJoin(shotsTable, eq(takesTable.shotId, shotsTable.id))
-        .where(inArray(takesTable.id, sourceTakeIds))
-    : [];
-  const sourceTakeById = new Map(sourceTakes.map((sourceTake) => [sourceTake.take.id, sourceTake]));
-  return changes.filter((change) => changeApplies(change, current, sourceTakeById.get(change.sourceTakeId))).map((change) => ({
+async function getApplicableChangeRows(sceneId: string, takeId: string) {
+  const [current, changes, sceneTakes] = await Promise.all([
+    getTakeContext(takeId),
+    db.select().from(continuityStateChangesTable).where(eq(continuityStateChangesTable.sceneId, sceneId)).orderBy(asc(continuityStateChangesTable.createdAt), asc(continuityStateChangesTable.id)),
+    getSceneTakes(sceneId),
+  ]);
+  if (!current || current.scene.id !== sceneId) return { current: null, changes: [], allChanges: changes, sceneTakes };
+  const takeById = new Map(sceneTakes.map((entry) => [entry.take.id, entry]));
+  const shotOrder = new Map<string, number>();
+  const takeOrder = new Map<string, number>();
+  sceneTakes.forEach((entry) => {
+    if (!shotOrder.has(entry.shot.id)) shotOrder.set(entry.shot.id, shotOrder.size);
+  });
+  sceneTakes.forEach((entry, index) => takeOrder.set(entry.take.id, index));
+  const currentEntry = takeById.get(takeId);
+  if (!currentEntry) return { current, changes: [], allChanges: changes, sceneTakes };
+  const applicable = changes
+    .filter((change) => changeApplies(change, currentEntry, takeById, takeOrder))
+    .sort((left, right) => {
+      const leftFrom = takeById.get(left.effectiveFromTakeId) ?? takeById.get(left.sourceTakeId);
+      const rightFrom = takeById.get(right.effectiveFromTakeId) ?? takeById.get(right.sourceTakeId);
+      if (leftFrom && rightFrom) {
+        const orderDifference = compareTakeOrder(leftFrom, rightFrom, shotOrder);
+        if (orderDifference !== 0) return orderDifference;
+      }
+      const createdDifference = left.createdAt.getTime() - right.createdAt.getTime();
+      return createdDifference || left.id.localeCompare(right.id);
+    });
+  return { current, changes: applicable, allChanges: changes, sceneTakes };
+}
+
+function toApprovedChange(change: typeof continuityStateChangesTable.$inferSelect): ApprovedChange {
+  return {
     id: change.id,
+    sceneId: change.sceneId,
     continuityItemId: change.continuityItemId,
     previousState: change.previousState,
     newState: change.newState,
     effectiveScope: normalizedScope(change.effectiveScope),
     effectiveFromTakeId: change.effectiveFromTakeId,
+    effectiveUntilTakeId: change.effectiveUntilTakeId,
+    supersedesChangeId: change.supersedesChangeId,
     sourceTakeId: change.sourceTakeId,
+    userId: change.userId,
+    reason: change.reason,
     createdAt: change.createdAt,
-  }));
+  };
+}
+
+export async function getApprovedChanges(sceneId: string, shotId: string, takeId: string): Promise<ApprovedChange[]> {
+  const result = await getApplicableChangeRows(sceneId, takeId);
+  if (!result.current || result.current.shot.id !== shotId) return [];
+  return result.changes.map(toApprovedChange);
+}
+
+function recoverLegacyOriginalState(item: ApprovedContinuityItem & { updatedAt: Date }, changes: ApprovedChange[]) {
+  if (changes.length === 0 || !item.id) return item;
+  const itemChanges = changes.filter((change) => change.continuityItemId === item.id);
+  const lastChange = itemChanges.at(-1);
+  if (lastChange && areStatesEquivalent(item.category, item.entity, item.expectedState, lastChange.newState)) {
+    item.originalState = lastChange.previousState;
+    item.expectedState = lastChange.previousState;
+  }
+  return item;
 }
 
 export async function resolveApprovedContinuityState(sceneId: string, shotId: string, takeId: string): Promise<ApprovedContinuityState> {
@@ -235,29 +343,42 @@ export async function resolveApprovedContinuityState(sceneId: string, shotId: st
     throw new Error("Continuity context does not match the requested take");
   }
 
-  const [rows, referenceTake] = await Promise.all([
-    db.select().from(continuityItemsTable).where(and(eq(continuityItemsTable.sceneId, sceneId), eq(continuityItemsTable.active, true))).orderBy(continuityItemsTable.updatedAt),
+  const [rows, referenceTake, applicableResult] = await Promise.all([
+    db.select().from(continuityItemsTable).where(and(eq(continuityItemsTable.sceneId, sceneId), eq(continuityItemsTable.active, true))).orderBy(asc(continuityItemsTable.updatedAt), asc(continuityItemsTable.id)),
     getReferenceTake(shotId),
+    getApplicableChangeRows(sceneId, takeId),
   ]);
   const referenceRun = referenceTake ? await getLatestCompletedAnalysisRun(referenceTake.id, "visual_state") : null;
   const referenceObservations = referenceTake ? await getTakeObservations(referenceTake.id, referenceRun?.id) : [];
+  const applicableChanges = applicableResult.changes.map(toApprovedChange);
+
+  const allChangesForItem = new Map<string, ApprovedChange[]>();
+  for (const change of applicableResult.allChanges.map(toApprovedChange)) {
+    const existing = allChangesForItem.get(change.continuityItemId) ?? [];
+    existing.push(change);
+    allChangesForItem.set(change.continuityItemId, existing);
+  }
 
   const chosenByKey = new Map<string, ApprovedContinuityItem & { updatedAt: Date }>();
   for (const row of rows) {
-    const item = itemFromRow(row);
-    chosenByKey.set(itemKey(item.category, item.entity), chooseItem(chosenByKey.get(itemKey(item.category, item.entity)), item));
+    const item = recoverLegacyOriginalState(itemFromRow(row), allChangesForItem.get(row.id) ?? []);
+    const key = itemKey(item.category, item.entity);
+    chosenByKey.set(key, chooseItem(chosenByKey.get(key), item));
   }
 
   for (const observation of referenceObservations) {
     if (inferObservationVisibility(observation) !== "visible") continue;
-    const key = itemKey(observation.category, observation.entity);
+    const category = normalizeCategory(observation.category);
+    const key = itemKey(category, observation.entity);
     const existing = chosenByKey.get(key);
     if (existing && sourcePriority(existing.sourceType) >= sourcePriority("manual")) continue;
+    const referenceState = normalizeState(category, observation.entity, observation.observedState);
     chosenByKey.set(key, {
       id: existing?.id ?? null,
-      category: normalizeCategory(observation.category),
+      category,
       entity: existing?.entity ?? observation.entity,
-      expectedState: observation.observedState,
+      expectedState: referenceState,
+      originalState: existing?.originalState ?? referenceState,
       sourceType: "reference",
       confidence: observation.confidence,
       active: true,
@@ -266,9 +387,8 @@ export async function resolveApprovedContinuityState(sceneId: string, shotId: st
     });
   }
 
-  const previousApprovedChanges = await getApprovedChanges(sceneId, shotId, takeId);
-  const changesByItem = new Map<string, typeof previousApprovedChanges[number]>();
-  for (const change of previousApprovedChanges) {
+  const changesByItem = new Map<string, ApprovedChange>();
+  for (const change of applicableChanges) {
     const existing = changesByItem.get(change.continuityItemId);
     if (!existing || change.createdAt >= existing.createdAt) changesByItem.set(change.continuityItemId, change);
   }
@@ -276,7 +396,7 @@ export async function resolveApprovedContinuityState(sceneId: string, shotId: st
     if (!item.id) continue;
     const change = changesByItem.get(item.id);
     if (change) {
-      item.expectedState = change.newState;
+      item.expectedState = normalizeState(item.category, item.entity, change.newState);
       item.sourceType = "approved_change";
       item.appliedChangeId = change.id;
     }
@@ -291,6 +411,82 @@ export async function resolveApprovedContinuityState(sceneId: string, shotId: st
     items,
     scriptRequirements: items.filter((item) => item.sourceType === "script"),
     referenceObservations,
-    previousApprovedChanges,
+    previousApprovedChanges: applicableChanges.map((change) => ({
+      id: change.id,
+      continuityItemId: change.continuityItemId,
+      previousState: change.previousState,
+      newState: change.newState,
+      effectiveScope: change.effectiveScope,
+      effectiveFromTakeId: change.effectiveFromTakeId,
+      effectiveUntilTakeId: change.effectiveUntilTakeId,
+      supersedesChangeId: change.supersedesChangeId,
+      sourceTakeId: change.sourceTakeId,
+      userId: change.userId,
+      reason: change.reason,
+      createdAt: change.createdAt,
+    })),
   };
+}
+
+export async function getContinuityOverview(sceneId: string) {
+  const [rows, changes, sceneTakes] = await Promise.all([
+    db.select().from(continuityItemsTable).where(and(eq(continuityItemsTable.sceneId, sceneId), eq(continuityItemsTable.active, true))).orderBy(asc(continuityItemsTable.category), asc(continuityItemsTable.entity)),
+    db.select().from(continuityStateChangesTable).where(eq(continuityStateChangesTable.sceneId, sceneId)).orderBy(asc(continuityStateChangesTable.createdAt), asc(continuityStateChangesTable.id)),
+    getSceneTakes(sceneId),
+  ]);
+  const sourceTakeIds = [...new Set(changes.map((change) => change.sourceTakeId))];
+  const sourceTakes = sourceTakeIds.length
+    ? await db.select({ take: takesTable, shot: shotsTable }).from(takesTable).innerJoin(shotsTable, eq(takesTable.shotId, shotsTable.id)).where(inArray(takesTable.id, sourceTakeIds))
+    : [];
+  const userIds = [...new Set(changes.map((change) => change.userId))];
+  const userRows = userIds.length ? await db.select({ id: usersTable.id, displayName: usersTable.displayName }).from(usersTable).where(inArray(usersTable.id, userIds)) : [];
+  const takeById = new Map(sourceTakes.map((entry) => [entry.take.id, entry.take]));
+  const sceneTakeById = new Map(sceneTakes.map((entry) => [entry.take.id, entry]));
+  const shotOrder = new Map<string, number>();
+  sceneTakes.forEach((entry) => {
+    if (!shotOrder.has(entry.shot.id)) shotOrder.set(entry.shot.id, shotOrder.size);
+  });
+  const userById = new Map(userRows.map((user) => [user.id, user.displayName]));
+
+  return rows.map((row) => {
+    const itemChanges = changes.filter((change) => change.continuityItemId === row.id);
+    const firstChange = itemChanges[0];
+    const effectiveChanges = [...itemChanges].sort((left, right) => {
+      const leftFrom = sceneTakeById.get(left.effectiveFromTakeId) ?? sceneTakeById.get(left.sourceTakeId);
+      const rightFrom = sceneTakeById.get(right.effectiveFromTakeId) ?? sceneTakeById.get(right.sourceTakeId);
+      if (leftFrom && rightFrom) {
+        const orderDifference = compareTakeOrder(leftFrom, rightFrom, shotOrder);
+        if (orderDifference !== 0) return orderDifference;
+      }
+      const createdDifference = left.createdAt.getTime() - right.createdAt.getTime();
+      return createdDifference || left.id.localeCompare(right.id);
+    });
+    const lastChange = effectiveChanges.at(-1);
+    const baseState = normalizeState(row.category, row.entity, firstChange ? firstChange.previousState : row.expectedState);
+    const currentApprovedState = normalizeState(row.category, row.entity, lastChange?.newState ?? row.expectedState);
+    return {
+      id: row.id,
+      sceneId: row.sceneId,
+      category: normalizeCategory(row.category),
+      entity: row.entity,
+      expectedState: baseState,
+      originalState: baseState,
+      currentApprovedState,
+      sourceType: row.sourceType,
+      confidence: numeric(row.confidence),
+      active: row.active,
+      updatedAt: row.updatedAt,
+      lastChange: lastChange ? {
+        id: lastChange.id,
+        newState: normalizeState(row.category, row.entity, lastChange.newState),
+        effectiveScope: normalizedScope(lastChange.effectiveScope),
+        sourceTakeId: lastChange.sourceTakeId,
+        sourceTakeNumber: takeById.get(lastChange.sourceTakeId)?.takeNumber ?? null,
+        userId: lastChange.userId,
+        userDisplayName: userById.get(lastChange.userId) ?? null,
+        reason: lastChange.reason,
+        createdAt: lastChange.createdAt,
+      } : null,
+    };
+  });
 }

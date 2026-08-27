@@ -5,7 +5,10 @@
  * TakeKeeper production workflow API
  * OpenAPI spec version: 0.2.0
  */
+import type { ActivityAgentParameter } from './activityAgentParameter';
+import type { ActivityStatusParameter } from './activityStatusParameter';
 import type { LimitParameter } from './limitParameter';
+import type { OffsetParameter } from './offsetParameter';
 
 export type ListActivityParams = {
 /**
@@ -13,4 +16,11 @@ export type ListActivityParams = {
  * @maximum 100
  */
 limit?: LimitParameter;
+/**
+ * @minimum 0
+ * @maximum 10000
+ */
+offset?: OffsetParameter;
+agent?: ActivityAgentParameter;
+status?: ActivityStatusParameter;
 };

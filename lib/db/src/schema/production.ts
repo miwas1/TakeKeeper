@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  jsonb,
   integer,
   pgTable,
   text,
@@ -61,6 +62,9 @@ export const takesTable = pgTable(
     capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
     isReference: boolean("is_reference").notNull().default(false),
     isCircle: boolean("is_circle").notNull().default(false),
+    circleMarkedAt: timestamp("circle_marked_at", { withTimezone: true }),
+    circleMarkedByUserId: text("circle_marked_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+    circleContinuitySnapshotJson: jsonb("circle_continuity_snapshot_json"),
     referenceStatus: text("reference_status").notNull().default("none"),
     submissionKey: text("submission_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -71,6 +75,7 @@ export const takesTable = pgTable(
     uniqueIndex("takes_shot_submission_uidx").on(table.shotId, table.submissionKey),
     uniqueIndex("takes_one_reference_uidx").on(table.shotId).where(sql`${table.isReference} = true`),
     index("takes_shot_idx").on(table.shotId),
+    index("takes_circle_idx").on(table.isCircle, table.circleMarkedAt),
   ],
 );
 

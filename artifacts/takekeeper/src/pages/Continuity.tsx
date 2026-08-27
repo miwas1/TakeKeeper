@@ -1,4 +1,4 @@
-import { ShieldCheck, ArrowRight, Lock, Image as ImageIcon, Camera } from "lucide-react";
+import { ShieldCheck, ArrowRight, History, ListChecks } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -12,7 +12,7 @@ export default function Continuity() {
         </div>
         <h1 className="text-3xl font-bold tracking-tight">Continuity Workspace</h1>
         <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-          The foundation for automated visual continuity verification.
+          Review validated mismatches, make deliberate state decisions, and keep a traceable production record.
         </p>
       </div>
 
@@ -20,50 +20,44 @@ export default function Continuity() {
         <Card className="bg-card border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Camera className="w-5 h-5 text-primary" />
-              On-Set Capture
+              <ListChecks className="w-5 h-5 text-primary" />
+              Human review loop
             </CardTitle>
             <CardDescription>
-              Awaiting implementation of media ingestion pipeline.
+              Decisions stay attached to the issue that prompted them.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-4">
             <p>
-              Future iterations will allow script supervisors to upload stills and video clips directly from set, tagged automatically to active scenes and shots.
+              From a shot’s Results view, fix and recheck with a new take, approve an intentional change for a defined scope, ignore a false alarm, or add a note.
             </p>
-            <div className="p-3 bg-secondary/50 rounded-sm font-mono text-[10px] border border-border/50">
-              STATUS: PENDING_API_ROUTES
-            </div>
           </CardContent>
         </Card>
 
         <Card className="bg-card border-info/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-info" />
-              Agentic Verification
+              <History className="w-5 h-5 text-info" />
+              Approved state history
             </CardTitle>
             <CardDescription>
-              Awaiting computer vision models for frame analysis.
+              Original references and later approved states remain distinguishable.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-4">
             <p>
-              When media is uploaded, the TakeKeeper vision agents will analyze frames for prop placement, wardrobe consistency, and actor positioning across takes.
+              Scene workspaces show the current approved state, original baseline, change scope, source take, and who approved it. Circle takes store the same snapshot for on-set reference.
             </p>
-            <div className="p-3 bg-secondary/50 rounded-sm font-mono text-[10px] border border-border/50">
-              STATUS: ARCHITECTURE_PLANNING
-            </div>
           </CardContent>
         </Card>
       </div>
 
       <Card className="mt-8 border-dashed bg-transparent border-muted-foreground/30">
         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-          <Lock className="w-8 h-8 text-muted-foreground mb-4 opacity-50" />
-          <h3 className="text-lg font-medium">Workflow Locked</h3>
+          <ShieldCheck className="w-8 h-8 text-muted-foreground mb-4 opacity-50" />
+          <h3 className="text-lg font-medium">Start from a scene</h3>
           <p className="text-muted-foreground text-sm max-w-md mt-2 mb-6">
-            The continuity tracking module will be unlocked once the core project and scene infrastructure is validated in the current phase.
+            Open a scene to manage its continuity bible and inspect the full state-change history.
           </p>
           <Link href="/projects">
             <Button variant="outline" className="font-mono text-xs">

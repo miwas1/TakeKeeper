@@ -5,9 +5,49 @@
  * TakeKeeper production workflow API
  * OpenAPI spec version: 0.2.0
  */
+export type AgentReadinessStatus = typeof AgentReadinessStatus[keyof typeof AgentReadinessStatus];
+
+
+export const AgentReadinessStatus = {
+  ready: 'ready',
+  not_configured: 'not_configured',
+} as const;
+
+export interface AgentReadiness {
+  provider: string;
+  runtime: string;
+  deploymentTarget: string;
+  model: string;
+  status: AgentReadinessStatus;
+  apiKeyConfigured: boolean;
+  cloudProjectConfigured: boolean;
+  agentEngineConfigured: boolean;
+}
+
+export type StorageReadinessStatus = typeof StorageReadinessStatus[keyof typeof StorageReadinessStatus];
+
+
+export const StorageReadinessStatus = {
+  ready: 'ready',
+  configuration_required: 'configuration_required',
+} as const;
+
+export interface StorageReadiness {
+  provider: string;
+  status: StorageReadinessStatus;
+  bucketConfigured: boolean;
+  privateDirectoryConfigured: boolean;
+}
+
 export interface HealthStatus {
   status: string;
   database: string;
+  environment: string;
+  auth: string;
+  /** @nullable */
+  latestAgentLatencyMs: number | null;
+  agent: AgentReadiness;
+  storage: StorageReadiness;
 }
 
 export interface ErrorResponse {
@@ -121,6 +161,30 @@ export const TakeReferenceStatus = {
   superseded: 'superseded',
 } as const;
 
+export type CircleContinuitySnapshotItemsItem = {
+  /** @nullable */
+  id: string | null;
+  category: string;
+  entity: string;
+  originalState: string;
+  approvedState: string;
+  sourceType: string;
+  /** @nullable */
+  confidence: number | null;
+  /** @nullable */
+  appliedChangeId: string | null;
+};
+
+export interface CircleContinuitySnapshot {
+  sceneId: string;
+  shotId: string;
+  takeId: string;
+  /** @nullable */
+  referenceTakeId: string | null;
+  capturedAt: string;
+  items: CircleContinuitySnapshotItemsItem[];
+}
+
 export interface Take {
   id: string;
   shotId: string;
@@ -131,6 +195,11 @@ export interface Take {
   capturedAt: string;
   isReference: boolean;
   isCircle: boolean;
+  /** @nullable */
+  circleMarkedAt: string | null;
+  /** @nullable */
+  circleMarkedByUserId: string | null;
+  circleContinuitySnapshot: CircleContinuitySnapshot | null;
   referenceStatus: TakeReferenceStatus;
   issueCount: number;
   /** @nullable */
@@ -155,12 +224,39 @@ export interface TakeUpdate {
   isCircle?: boolean;
 }
 
+export type ContinuityItemLastChangeEffectiveScope = typeof ContinuityItemLastChangeEffectiveScope[keyof typeof ContinuityItemLastChangeEffectiveScope];
+
+
+export const ContinuityItemLastChangeEffectiveScope = {
+  this_shot: 'this_shot',
+  rest_of_scene: 'rest_of_scene',
+  from_now_on: 'from_now_on',
+} as const;
+
+export interface ContinuityItemLastChange {
+  id: string;
+  newState: string;
+  effectiveScope: ContinuityItemLastChangeEffectiveScope;
+  sourceTakeId: string;
+  /** @nullable */
+  sourceTakeNumber: number | null;
+  userId: string;
+  /** @nullable */
+  userDisplayName: string | null;
+  /** @nullable */
+  reason: string | null;
+  createdAt: string;
+}
+
 export interface ContinuityItem {
   id: string;
   sceneId: string;
   category: string;
   entity: string;
   expectedState: string;
+  originalState: string;
+  currentApprovedState: string;
+  lastChange: ContinuityItemLastChange | null;
   sourceType: string;
   /** @nullable */
   confidence: number | null;
@@ -188,11 +284,69 @@ export interface ContinuityItemUpdate {
   active?: boolean;
 }
 
+export type ContinuityChangeInputEffectiveScope = typeof ContinuityChangeInputEffectiveScope[keyof typeof ContinuityChangeInputEffectiveScope];
+
+
+export const ContinuityChangeInputEffectiveScope = {
+  this_shot: 'this_shot',
+  rest_of_scene: 'rest_of_scene',
+  from_now_on: 'from_now_on',
+  shot: 'shot',
+  scene: 'scene',
+  future: 'future',
+} as const;
+
 export interface ContinuityChangeInput {
   /** @minLength 1 */
-  newState: string;
-  effectiveScope: string;
-  sourceTakeId: string;
+  newState?: string;
+  effectiveScope: ContinuityChangeInputEffectiveScope;
+  sourceTakeId?: string;
+  effectiveFromTakeId?: string;
+  /** @nullable */
+  effectiveUntilTakeId?: string | null;
+  /** @maxLength 1000 */
+  note?: string;
+  /** @maxLength 240 */
+  idempotencyKey?: string;
+}
+
+export interface ContinuityIssueNoteInput {
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  note: string;
+}
+
+export type ContinuityIssueDecisionInputStatus = typeof ContinuityIssueDecisionInputStatus[keyof typeof ContinuityIssueDecisionInputStatus];
+
+
+export const ContinuityIssueDecisionInputStatus = {
+  ignored: 'ignored',
+  intentional: 'intentional',
+} as const;
+
+export type ContinuityIssueDecisionInputEffectiveScope = typeof ContinuityIssueDecisionInputEffectiveScope[keyof typeof ContinuityIssueDecisionInputEffectiveScope];
+
+
+export const ContinuityIssueDecisionInputEffectiveScope = {
+  this_shot: 'this_shot',
+  rest_of_scene: 'rest_of_scene',
+  from_now_on: 'from_now_on',
+} as const;
+
+export interface ContinuityIssueDecisionInput {
+  status: ContinuityIssueDecisionInputStatus;
+  effectiveScope?: ContinuityIssueDecisionInputEffectiveScope;
+  /** @maxLength 1000 */
+  newState?: string;
+  /** @maxLength 1000 */
+  note?: string;
+}
+
+export interface ContinuityRecheckInput {
+  takeId: string;
+  retry?: boolean;
 }
 
 export interface VisualStateAnalysisInput {
@@ -289,6 +443,7 @@ export interface VisualStateAnalysis {
 
 export interface ContinuityCheckInput {
   retry?: boolean;
+  recheckIssueId?: string;
 }
 
 export type ContinuityIssueCategory = typeof ContinuityIssueCategory[keyof typeof ContinuityIssueCategory];
@@ -334,6 +489,9 @@ export interface ContinuityIssue {
   entity: string;
   expectedState: string;
   observedState: string;
+  /** @nullable */
+  continuityItemId: string | null;
+  stateDimension: string;
   severity: ContinuityIssueSeverity;
   /**
      * @minimum 0
@@ -344,6 +502,114 @@ export interface ContinuityIssue {
   /** @nullable */
   suggestedFix: string | null;
   status: ContinuityIssueStatus;
+  /** @nullable */
+  resolution: string | null;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  resolutionTakeId: string | null;
+  /** @nullable */
+  resolvedByUserId: string | null;
+  /** @nullable */
+  resolvedAt: string | null;
+}
+
+export type ContinuityDecisionChangeEffectiveScope = typeof ContinuityDecisionChangeEffectiveScope[keyof typeof ContinuityDecisionChangeEffectiveScope];
+
+
+export const ContinuityDecisionChangeEffectiveScope = {
+  this_shot: 'this_shot',
+  rest_of_scene: 'rest_of_scene',
+  from_now_on: 'from_now_on',
+} as const;
+
+export interface ContinuityDecisionChange {
+  id: string;
+  sceneId: string;
+  continuityItemId: string;
+  previousState: string;
+  newState: string;
+  effectiveScope: ContinuityDecisionChangeEffectiveScope;
+  effectiveFromTakeId: string;
+  /** @nullable */
+  effectiveUntilTakeId: string | null;
+  /** @nullable */
+  supersedesChangeId: string | null;
+  sourceTakeId: string;
+  userId: string;
+  /** @nullable */
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface ContinuityDecision {
+  issue: ContinuityIssue;
+  change: ContinuityDecisionChange | null;
+  created: boolean;
+}
+
+export type ContinuityDecisionResponse = ContinuityIssue | ContinuityDecision;
+
+export type ContinuityHistoryEntryEffectiveScope = typeof ContinuityHistoryEntryEffectiveScope[keyof typeof ContinuityHistoryEntryEffectiveScope];
+
+
+export const ContinuityHistoryEntryEffectiveScope = {
+  this_shot: 'this_shot',
+  rest_of_scene: 'rest_of_scene',
+  from_now_on: 'from_now_on',
+} as const;
+
+export interface ContinuityHistoryEntry {
+  id: string;
+  sceneId: string;
+  continuityItemId: string;
+  entity: string;
+  category: string;
+  previousState: string;
+  newState: string;
+  effectiveScope: ContinuityHistoryEntryEffectiveScope;
+  effectiveFromTakeId: string;
+  /** @nullable */
+  effectiveUntilTakeId: string | null;
+  /** @nullable */
+  supersedesChangeId: string | null;
+  sourceTakeId: string;
+  sourceTakeNumber: number;
+  shotId: string;
+  shotLabel: string;
+  userId: string;
+  /** @nullable */
+  userDisplayName: string | null;
+  /** @nullable */
+  reason: string | null;
+  createdAt: string;
+}
+
+export type ContinuityIssueEventMetadata = { [key: string]: unknown } | null;
+
+export interface ContinuityIssueEvent {
+  id: string;
+  issueId: string;
+  eventType: string;
+  /** @nullable */
+  status: string | null;
+  /** @nullable */
+  note: string | null;
+  /** @nullable */
+  resolution: string | null;
+  /** @nullable */
+  resolutionTakeId: string | null;
+  /** @nullable */
+  userId: string | null;
+  /** @nullable */
+  userDisplayName: string | null;
+  metadata: ContinuityIssueEventMetadata;
+  createdAt: string;
+}
+
+export interface ContinuityIssueHistory {
+  issue: ContinuityIssue;
+  events: ContinuityIssueEvent[];
 }
 
 export type ContinuityComparisonCategory = typeof ContinuityComparisonCategory[keyof typeof ContinuityComparisonCategory];
@@ -481,16 +747,21 @@ export interface MediaInput {
   height?: number;
 }
 
+export type ActivityEventMetadata = { [key: string]: unknown } | null;
+
 export interface ActivityEvent {
   id: string;
   agent: string;
   action: string;
+  /** @nullable */
+  toolName: string | null;
   status: string;
   /** @nullable */
   latencyMs?: number | null;
   createdAt: string;
   /** @nullable */
   projectTitle: string | null;
+  metadata: ActivityEventMetadata;
 }
 
 export interface Dashboard {
@@ -514,19 +785,81 @@ export interface ShotWorkspace {
   takes: Take[];
 }
 
+export type DailyReportStatus = typeof DailyReportStatus[keyof typeof DailyReportStatus];
+
+
+export const DailyReportStatus = {
+  not_generated: 'not_generated',
+  generating: 'generating',
+  ready: 'ready',
+  failed: 'failed',
+} as const;
+
+export interface SceneReportSummary {
+  sceneId: string;
+  sceneNumber: string;
+  slugline: string;
+  shotCount: number;
+  takeCount: number;
+}
+
+export type CircleTakeSummaryContinuityStatus = typeof CircleTakeSummaryContinuityStatus[keyof typeof CircleTakeSummaryContinuityStatus];
+
+
+export const CircleTakeSummaryContinuityStatus = {
+  all_clear: 'all_clear',
+  issues: 'issues',
+  not_checked: 'not_checked',
+} as const;
+
+export interface CircleTakeSummary {
+  takeId: string;
+  sceneNumber: string;
+  shotLabel: string;
+  takeNumber: number;
+  /** @nullable */
+  notes: string | null;
+  continuityStatus: CircleTakeSummaryContinuityStatus;
+}
+
 export interface DailyReport {
+  /** @nullable */
+  id: string | null;
   available: boolean;
   message: string;
-  /** @nullable */
-  project: string | null;
-  /** @nullable */
-  shootDate: string | null;
+  status: DailyReportStatus;
+  projectId: string;
+  project: string;
+  shootDate: string;
   scenesWorked: number;
+  sceneSummaries: SceneReportSummary[];
   shots: number;
   takeCount: number;
   circleTakes: number;
-  issuesCaught: number;
+  circleTakeDetails: CircleTakeSummary[];
+  issuesDetected: number;
+  issuesFixed: number;
+  issuesIntentional: number;
+  issuesIgnored: number;
   unresolvedWarnings: number;
+  unresolvedIssues: ContinuityIssue[];
+  intentionalChanges: string[];
+  notes: string[];
+  /** @nullable */
+  narrative: string | null;
+  /** @nullable */
+  model: string | null;
+  /** @nullable */
+  generatedAt: string | null;
+  updatedAt: string;
+  /** @nullable */
+  errorMessage: string | null;
+  agentTools: string[];
+}
+
+export interface GenerateDailyReportInput {
+  projectId: string;
+  shootDate: string;
 }
 
 export type ScreenplayImportInputSourceType = typeof ScreenplayImportInputSourceType[keyof typeof ScreenplayImportInputSourceType];
@@ -653,15 +986,36 @@ export type ProjectIdQueryParameter = string;
 
 export type LimitParameter = number;
 
+export type OffsetParameter = number;
+
+export type ActivityAgentParameter = string;
+
+export type ActivityStatusParameter = typeof ActivityStatusParameter[keyof typeof ActivityStatusParameter];
+
+
+export const ActivityStatusParameter = {
+  started: 'started',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
 export type ListActivityParams = {
 /**
  * @minimum 1
  * @maximum 100
  */
 limit?: LimitParameter;
+/**
+ * @minimum 0
+ * @maximum 10000
+ */
+offset?: OffsetParameter;
+agent?: ActivityAgentParameter;
+status?: ActivityStatusParameter;
 };
 
 export type GetDailyReportParams = {
 projectId: ProjectIdQueryParameter;
+shootDate?: string;
 };
 

@@ -5,10 +5,18 @@
  * TakeKeeper production workflow API
  * OpenAPI spec version: 0.2.0
  */
+import type { ContinuityChangeInputEffectiveScope } from './continuityChangeInputEffectiveScope';
 
 export interface ContinuityChangeInput {
   /** @minLength 1 */
-  newState: string;
-  effectiveScope: string;
-  sourceTakeId: string;
+  newState?: string;
+  effectiveScope: ContinuityChangeInputEffectiveScope;
+  sourceTakeId?: string;
+  effectiveFromTakeId?: string;
+  /** @nullable */
+  effectiveUntilTakeId?: string | null;
+  /** @maxLength 1000 */
+  note?: string;
+  /** @maxLength 240 */
+  idempotencyKey?: string;
 }

@@ -108,7 +108,14 @@ export const continuityIssueSchema = continuityIssueDraftSchema.extend({
   takeId: z.string().uuid().optional(),
   analysisRunId: z.string().uuid().nullable().optional(),
   issueKey: z.string().min(1).optional(),
+  stateDimension: z.string().min(1).optional(),
   status: z.enum(issueStatuses),
+  continuityItemId: z.string().uuid().nullable().optional(),
+  resolution: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  resolutionTakeId: z.string().uuid().nullable().optional(),
+  resolvedByUserId: z.string().nullable().optional(),
+  resolvedAt: z.string().datetime().nullable().optional(),
 });
 
 export const continuitySupervisorOutputSchema = z.object({
@@ -138,6 +145,37 @@ export const stateChangeDecisionSchema = z.object({
   reason: z.string().min(1),
 });
 
+export const continuityStateChangeSchema = z.object({
+  id: z.string().uuid(),
+  sceneId: z.string().uuid(),
+  continuityItemId: z.string().uuid(),
+  previousState: z.string().min(1),
+  newState: z.string().min(1),
+  effectiveScope: z.enum(effectiveScopes),
+  effectiveFromTakeId: z.string().uuid(),
+  effectiveUntilTakeId: z.string().uuid().nullable(),
+  supersedesChangeId: z.string().uuid().nullable(),
+  sourceTakeId: z.string().uuid(),
+  userId: z.string(),
+  userDisplayName: z.string().nullable().optional(),
+  reason: z.string().nullable().optional(),
+  createdAt: z.string().datetime(),
+});
+
+export const continuityIssueEventSchema = z.object({
+  id: z.string().uuid(),
+  issueId: z.string().uuid(),
+  eventType: z.string(),
+  status: z.enum([...issueStatuses, "note"] as const).nullable(),
+  note: z.string().nullable(),
+  resolution: z.string().nullable(),
+  resolutionTakeId: z.string().uuid().nullable(),
+  userId: z.string().nullable(),
+  userDisplayName: z.string().nullable().optional(),
+  metadata: z.record(z.unknown()).nullable().optional(),
+  createdAt: z.string().datetime(),
+});
+
 export const agentEventSchema = z.object({
   projectId: z.string().nullable(),
   agent: z.string().min(1),
@@ -159,6 +197,43 @@ export const dailyReportSchema = z.object({
   notes: z.array(z.string()),
 });
 
+export const dailyReportFactsSchema = z.object({
+  projectId: z.string().min(1),
+  projectTitle: z.string().min(1),
+  shootDate: z.string().date(),
+  scenesWorked: z.number().int().nonnegative(),
+  sceneSummaries: z.array(z.object({
+    sceneId: z.string().min(1),
+    sceneNumber: z.string().min(1),
+    slugline: z.string(),
+    shotCount: z.number().int().nonnegative(),
+    takeCount: z.number().int().nonnegative(),
+  })),
+  shots: z.number().int().nonnegative(),
+  takeCount: z.number().int().nonnegative(),
+  circleTakes: z.number().int().nonnegative(),
+  circleTakeDetails: z.array(z.object({
+    takeId: z.string().min(1),
+    sceneNumber: z.string().min(1),
+    shotLabel: z.string().min(1),
+    takeNumber: z.number().int().nonnegative(),
+    notes: z.string().nullable(),
+    continuityStatus: z.enum(["all_clear", "issues", "not_checked"]),
+  })),
+  issuesDetected: z.number().int().nonnegative(),
+  issuesFixed: z.number().int().nonnegative(),
+  issuesIntentional: z.number().int().nonnegative(),
+  issuesIgnored: z.number().int().nonnegative(),
+  unresolvedWarnings: z.number().int().nonnegative(),
+  unresolvedIssues: z.array(continuityIssueSchema),
+  intentionalChanges: z.array(z.string()),
+  notes: z.array(z.string()),
+});
+
+export const dailyReportNarrativeSchema = z.object({
+  summary: z.string().min(1).max(4000),
+});
+
 export type SceneBreakdown = z.infer<typeof sceneBreakdownSchema>;
 export type ScreenplayScene = z.infer<typeof screenplaySceneSchema>;
 export type ScreenplayBreakdown = z.infer<typeof screenplayBreakdownSchema>;
@@ -171,5 +246,9 @@ export type ContinuityIssue = z.infer<typeof continuityIssueSchema>;
 export type ContinuitySupervisorOutput = z.infer<typeof continuitySupervisorOutputSchema>;
 export type ContinuityCheckResult = z.infer<typeof continuityCheckResultSchema>;
 export type StateChangeDecision = z.infer<typeof stateChangeDecisionSchema>;
+export type ContinuityStateChange = z.infer<typeof continuityStateChangeSchema>;
+export type ContinuityIssueEvent = z.infer<typeof continuityIssueEventSchema>;
 export type AgentEvent = z.infer<typeof agentEventSchema>;
 export type DailyReport = z.infer<typeof dailyReportSchema>;
+export type DailyReportFacts = z.infer<typeof dailyReportFactsSchema>;
+export type DailyReportNarrative = z.infer<typeof dailyReportNarrativeSchema>;

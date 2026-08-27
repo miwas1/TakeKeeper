@@ -21,7 +21,7 @@ import { plannedToolInputs, type ApplicationTool } from "./index";
 type ContinuityToolDependencies = {
   projectId: string;
   saveObservations?: (input: { takeId: string; analysisRunId: string; observations: VisualObservation[] }) => Promise<unknown>;
-  createIssue?: (input: { takeId: string; issue: ContinuityIssueDraft }) => Promise<unknown>;
+  createIssue?: (input: { takeId: string; issue: ContinuityIssueDraft; continuityItemId?: string | null }) => Promise<unknown>;
 };
 
 type ContinuityToolRuntime = {
@@ -32,7 +32,7 @@ type ContinuityToolRuntime = {
   get_previous_approved_changes: ApplicationTool<{ sceneId: string; takeId: string }, unknown>;
   get_effective_continuity_state: ApplicationTool<{ sceneId: string; shotId: string; takeId: string }, unknown>;
   save_observations: ApplicationTool<{ takeId: string; analysisRunId: string; observations: Array<Omit<VisualObservation, "visibility"> & { visibility?: VisualObservation["visibility"] }> }, unknown>;
-  create_issue: ApplicationTool<{ takeId: string; issue: ContinuityIssueDraft }, unknown>;
+  create_issue: ApplicationTool<{ takeId: string; issue: ContinuityIssueDraft; continuityItemId?: string | null }, unknown>;
   record_agent_event: ApplicationTool<{
     projectId: string;
     agent: string;

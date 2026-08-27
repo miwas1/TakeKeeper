@@ -26,8 +26,12 @@ export const analyticsEvents = [
   "issue_detected",
   "issue_fixed",
   "issue_marked_intentional",
+  "issue_ignored",
+  "issue_note_added",
+  "continuity_state_change_approved",
   "take_circled",
   "report_generated",
+  "report_viewed",
 ] as const;
 
 export type AnalyticsEventName = (typeof analyticsEvents)[number];

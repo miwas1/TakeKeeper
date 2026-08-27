@@ -17,7 +17,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
   const [counts, projects, recentActivity] = await Promise.all([
     getDashboardCounts(userId),
     listOwnedProjects(userId),
-    listOwnedActivity(userId, 6),
+    listOwnedActivity(userId, { limit: 6 }),
   ]);
   res.json(GetDashboardResponse.parse({ ...counts, projects, recentActivity }));
 });
@@ -28,7 +28,12 @@ router.get("/activity", async (req, res): Promise<void> => {
     res.status(400).json({ error: query.error.message, code: "INVALID_ACTIVITY_QUERY" });
     return;
   }
-  const events = await listOwnedActivity(res.locals.userId as string, query.data.limit ?? 10);
+  const events = await listOwnedActivity(res.locals.userId as string, {
+    limit: query.data.limit ?? 10,
+    offset: query.data.offset ?? 0,
+    agent: query.data.agent,
+    status: query.data.status,
+  });
   res.json(ListActivityResponse.parse(events));
 });
 

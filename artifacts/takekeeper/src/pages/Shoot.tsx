@@ -3,11 +3,13 @@ import { Link, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetShotQueryKey,
+  getGetContinuityCheckQueryKey,
   useCreateTake,
   useDeleteMedia,
   useGetShot,
   useRegisterMedia,
   useRequestUploadUrl,
+  useRunContinuityCheck,
   type UploadRequestContentType,
 } from "@workspace/api-client-react";
 import { ArrowLeft, Camera, Check, ImagePlus, Loader2, RotateCcw, StickyNote, Upload, X } from "lucide-react";
@@ -37,6 +39,7 @@ export default function Shoot() {
   const registerMedia = useRegisterMedia();
   const createTake = useCreateTake();
   const deleteMedia = useDeleteMedia();
+  const runContinuityCheck = useRunContinuityCheck();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +59,7 @@ export default function Shoot() {
   const [errorText, setErrorText] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [replaceDialogOpen, setReplaceDialogOpen] = useState(false);
+  const recheckIssueId = new URLSearchParams(window.location.search).get("recheckIssueId");
 
   const reference = data?.takes.find((take) => take.isReference);
   const isReferenceFlow = !reference || mode === "reference";
@@ -193,11 +197,24 @@ export default function Shoot() {
       setProgress(100);
       setStage("ready");
       await queryClient.invalidateQueries({ queryKey: getGetShotQueryKey(shotId) });
+      let recheckStarted = false;
+      if (!isReferenceFlow && recheckIssueId) {
+        try {
+          await runContinuityCheck.mutateAsync({ takeId: take.id, data: { recheckIssueId } });
+          recheckStarted = true;
+          void queryClient.invalidateQueries({ queryKey: getGetContinuityCheckQueryKey(take.id) });
+        } catch (recheckError) {
+          toast({ title: "Take saved; recheck could not start", description: errorMessage(recheckError), variant: "destructive" });
+        }
+      }
       toast({
         title: isReferenceFlow ? "Reference saved" : `Take ${String(take.takeNumber).padStart(2, "0")} saved`,
-        description: isReferenceFlow ? "Future takes for this shot will use this approved setup." : "The image is saved and ready for a future continuity check.",
+        description: isReferenceFlow ? "Future takes for this shot will use this approved setup." : recheckStarted ? "A fresh continuity check is running against this take." : "The image is saved and ready for a future continuity check.",
       });
-      window.setTimeout(() => resetCapture(false), 700);
+      window.setTimeout(() => {
+        if (recheckStarted) window.location.href = `/shots/${shotId}/results`;
+        else resetCapture(false);
+      }, 700);
     } catch (saveError) {
       setStage("error");
       setErrorText(errorMessage(saveError));

@@ -5,6 +5,7 @@
  * TakeKeeper production workflow API
  * OpenAPI spec version: 0.2.0
  */
+import type { ContinuityItemLastChange } from './continuityItemLastChange';
 
 export interface ContinuityItem {
   id: string;
@@ -12,6 +13,9 @@ export interface ContinuityItem {
   category: string;
   entity: string;
   expectedState: string;
+  originalState: string;
+  currentApprovedState: string;
+  lastChange: ContinuityItemLastChange | null;
   sourceType: string;
   /** @nullable */
   confidence: number | null;

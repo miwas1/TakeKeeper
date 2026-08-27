@@ -10,8 +10,10 @@ import { Shell } from '@/components/layout/Shell';
 import ProjectsList from '@/pages/ProjectsList';
 import ProjectDetail from '@/pages/ProjectDetail';
 import ActivityList from '@/pages/ActivityList';
+import AgentActivity from '@/pages/AgentActivity';
 import Settings from '@/pages/Settings';
 import SceneWorkspace from '@/pages/SceneWorkspace';
+import ContinuityHistory from '@/pages/ContinuityHistory';
 import ShotWorkspace from '@/pages/ShotWorkspace';
 import Shoot from '@/pages/Shoot';
 import ShootLauncher from '@/pages/ShootLauncher';
@@ -37,12 +39,14 @@ function Router() {
           <Route path="/projects" component={ProjectsList} />
           <Route path="/projects/:projectId/screenplay" component={ScreenplayImport} />
           <Route path="/projects/:projectId" component={ProjectDetail} />
+          <Route path="/scenes/:sceneId/continuity-history" component={ContinuityHistory} />
           <Route path="/scenes/:sceneId" component={SceneWorkspace} />
           <Route path="/shots/:shotId/results" component={Results} />
           <Route path="/shots/:shotId" component={ShotWorkspace} />
           <Route path="/shoot/:shotId" component={Shoot} />
           <Route path="/shoot" component={ShootLauncher} />
           <Route path="/activity" component={ActivityList} />
+          <Route path="/agent-activity" component={AgentActivity} />
           <Route path="/reports" component={Reports} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />

@@ -22,7 +22,7 @@ For local testing outside Replit, set `DATABASE_URL` to an absolute `pglite://` 
 - PostgreSQL + Drizzle ORM
 - OpenAPI + Orval + Zod
 - Replit App Storage
-- Google Gemini / ADK / Agent Engine architecture only
+- Google Gemini through the official `@google/genai` SDK; Agent Engine is the required hosted deployment target
 - Google Gemini Script Breakdown, Visual State, and Continuity Supervisor runtimes using the server-only `GEMINI_API_KEY` secret
 
 ## Source of truth
@@ -40,6 +40,7 @@ For local testing outside Replit, set `DATABASE_URL` to an absolute `pglite://` 
 - Media bytes live in App Storage; PostgreSQL stores object keys and metadata only.
 - Runtime AI is Google-only; do not add non-Google models or agent frameworks.
 - Protected routes fail closed in production until the production identity adapter is configured.
+- Production authentication and the hosted Agent Engine call are release gates. Do not describe either as ready until the deployed health screen verifies them.
 - API changes begin in OpenAPI and require codegen before client or route changes.
 
 ## Product boundaries

@@ -9,4 +9,5 @@ import type { ProjectIdQueryParameter } from './projectIdQueryParameter';
 
 export type GetDailyReportParams = {
 projectId: ProjectIdQueryParameter;
+shootDate?: Date;
 };

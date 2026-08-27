@@ -20,6 +20,9 @@ export interface ContinuityIssue {
   entity: string;
   expectedState: string;
   observedState: string;
+  /** @nullable */
+  continuityItemId: string | null;
+  stateDimension: string;
   severity: ContinuityIssueSeverity;
   /**
      * @minimum 0
@@ -30,4 +33,14 @@ export interface ContinuityIssue {
   /** @nullable */
   suggestedFix: string | null;
   status: ContinuityIssueStatus;
+  /** @nullable */
+  resolution: string | null;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  resolutionTakeId: string | null;
+  /** @nullable */
+  resolvedByUserId: string | null;
+  /** @nullable */
+  resolvedAt: Date | null;
 }

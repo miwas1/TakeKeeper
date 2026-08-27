@@ -13,7 +13,26 @@ import * as zod from 'zod';
  */
 export const HealthCheckResponse = zod.object({
   "status": zod.string(),
-  "database": zod.string()
+  "database": zod.string(),
+  "environment": zod.string(),
+  "auth": zod.string(),
+  "latestAgentLatencyMs": zod.number().nullable(),
+  "agent": zod.object({
+  "provider": zod.string(),
+  "runtime": zod.string(),
+  "deploymentTarget": zod.string(),
+  "model": zod.string(),
+  "status": zod.enum(['ready', 'not_configured']),
+  "apiKeyConfigured": zod.boolean(),
+  "cloudProjectConfigured": zod.boolean(),
+  "agentEngineConfigured": zod.boolean()
+}),
+  "storage": zod.object({
+  "provider": zod.string(),
+  "status": zod.enum(['ready', 'configuration_required']),
+  "bucketConfigured": zod.boolean(),
+  "privateDirectoryConfigured": zod.boolean()
+})
 })
 
 
@@ -38,10 +57,12 @@ export const GetDashboardResponse = zod.object({
   "id": zod.string(),
   "agent": zod.string(),
   "action": zod.string(),
+  "toolName": zod.string().nullable(),
   "status": zod.string(),
   "latencyMs": zod.number().nullish(),
   "createdAt": zod.coerce.date(),
-  "projectTitle": zod.string().nullable()
+  "projectTitle": zod.string().nullable(),
+  "metadata": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()])
 }))
 })
 
@@ -52,20 +73,29 @@ export const GetDashboardResponse = zod.object({
 export const listActivityQueryLimitDefault = 25;
 export const listActivityQueryLimitMax = 100;
 
+export const listActivityQueryOffsetDefault = 0;
+export const listActivityQueryOffsetMin = 0;
+export const listActivityQueryOffsetMax = 10000;
+
 
 
 export const ListActivityQueryParams = zod.object({
-  "limit": zod.coerce.number().min(1).max(listActivityQueryLimitMax).default(listActivityQueryLimitDefault)
+  "limit": zod.coerce.number().min(1).max(listActivityQueryLimitMax).default(listActivityQueryLimitDefault),
+  "offset": zod.coerce.number().min(listActivityQueryOffsetMin).max(listActivityQueryOffsetMax).default(listActivityQueryOffsetDefault),
+  "agent": zod.coerce.string().optional(),
+  "status": zod.enum(['started', 'completed', 'failed']).optional()
 })
 
 export const ListActivityResponseItem = zod.object({
   "id": zod.string(),
   "agent": zod.string(),
   "action": zod.string(),
+  "toolName": zod.string().nullable(),
   "status": zod.string(),
   "latencyMs": zod.number().nullish(),
   "createdAt": zod.coerce.date(),
-  "projectTitle": zod.string().nullable()
+  "projectTitle": zod.string().nullable(),
+  "metadata": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()])
 })
 export const ListActivityResponse = zod.array(ListActivityResponseItem)
 
@@ -266,6 +296,19 @@ export const GetSceneResponse = zod.object({
   "category": zod.string(),
   "entity": zod.string(),
   "expectedState": zod.string(),
+  "originalState": zod.string(),
+  "currentApprovedState": zod.string(),
+  "lastChange": zod.union([zod.object({
+  "id": zod.string(),
+  "newState": zod.string(),
+  "effectiveScope": zod.enum(['this_shot', 'rest_of_scene', 'from_now_on']),
+  "sourceTakeId": zod.string(),
+  "sourceTakeNumber": zod.number().nullable(),
+  "userId": zod.string(),
+  "userDisplayName": zod.string().nullable(),
+  "reason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
   "sourceType": zod.string(),
   "confidence": zod.number().nullable(),
   "active": zod.boolean(),
@@ -414,6 +457,25 @@ export const GetShotResponse = zod.object({
   "capturedAt": zod.coerce.date(),
   "isReference": zod.boolean(),
   "isCircle": zod.boolean(),
+  "circleMarkedAt": zod.coerce.date().nullable(),
+  "circleMarkedByUserId": zod.string().nullable(),
+  "circleContinuitySnapshot": zod.union([zod.object({
+  "sceneId": zod.string(),
+  "shotId": zod.string(),
+  "takeId": zod.string(),
+  "referenceTakeId": zod.string().nullable(),
+  "capturedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.string().nullable(),
+  "category": zod.string(),
+  "entity": zod.string(),
+  "originalState": zod.string(),
+  "approvedState": zod.string(),
+  "sourceType": zod.string(),
+  "confidence": zod.number().nullable(),
+  "appliedChangeId": zod.string().nullable()
+}))
+}),zod.null()]),
   "referenceStatus": zod.enum(['none', 'active', 'superseded']),
   "issueCount": zod.number(),
   "mediaUrl": zod.string().nullable()
@@ -477,6 +539,25 @@ export const ListTakesResponseItem = zod.object({
   "capturedAt": zod.coerce.date(),
   "isReference": zod.boolean(),
   "isCircle": zod.boolean(),
+  "circleMarkedAt": zod.coerce.date().nullable(),
+  "circleMarkedByUserId": zod.string().nullable(),
+  "circleContinuitySnapshot": zod.union([zod.object({
+  "sceneId": zod.string(),
+  "shotId": zod.string(),
+  "takeId": zod.string(),
+  "referenceTakeId": zod.string().nullable(),
+  "capturedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.string().nullable(),
+  "category": zod.string(),
+  "entity": zod.string(),
+  "originalState": zod.string(),
+  "approvedState": zod.string(),
+  "sourceType": zod.string(),
+  "confidence": zod.number().nullable(),
+  "appliedChangeId": zod.string().nullable()
+}))
+}),zod.null()]),
   "referenceStatus": zod.enum(['none', 'active', 'superseded']),
   "issueCount": zod.number(),
   "mediaUrl": zod.string().nullable()
@@ -511,6 +592,25 @@ export const CreateTakeResponse = zod.object({
   "capturedAt": zod.coerce.date(),
   "isReference": zod.boolean(),
   "isCircle": zod.boolean(),
+  "circleMarkedAt": zod.coerce.date().nullable(),
+  "circleMarkedByUserId": zod.string().nullable(),
+  "circleContinuitySnapshot": zod.union([zod.object({
+  "sceneId": zod.string(),
+  "shotId": zod.string(),
+  "takeId": zod.string(),
+  "referenceTakeId": zod.string().nullable(),
+  "capturedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.string().nullable(),
+  "category": zod.string(),
+  "entity": zod.string(),
+  "originalState": zod.string(),
+  "approvedState": zod.string(),
+  "sourceType": zod.string(),
+  "confidence": zod.number().nullable(),
+  "appliedChangeId": zod.string().nullable()
+}))
+}),zod.null()]),
   "referenceStatus": zod.enum(['none', 'active', 'superseded']),
   "issueCount": zod.number(),
   "mediaUrl": zod.string().nullable()
@@ -540,6 +640,25 @@ export const UpdateTakeResponse = zod.object({
   "capturedAt": zod.coerce.date(),
   "isReference": zod.boolean(),
   "isCircle": zod.boolean(),
+  "circleMarkedAt": zod.coerce.date().nullable(),
+  "circleMarkedByUserId": zod.string().nullable(),
+  "circleContinuitySnapshot": zod.union([zod.object({
+  "sceneId": zod.string(),
+  "shotId": zod.string(),
+  "takeId": zod.string(),
+  "referenceTakeId": zod.string().nullable(),
+  "capturedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.string().nullable(),
+  "category": zod.string(),
+  "entity": zod.string(),
+  "originalState": zod.string(),
+  "approvedState": zod.string(),
+  "sourceType": zod.string(),
+  "confidence": zod.number().nullable(),
+  "appliedChangeId": zod.string().nullable()
+}))
+}),zod.null()]),
   "referenceStatus": zod.enum(['none', 'active', 'superseded']),
   "issueCount": zod.number(),
   "mediaUrl": zod.string().nullable()
@@ -569,6 +688,19 @@ export const ListContinuityItemsResponseItem = zod.object({
   "category": zod.string(),
   "entity": zod.string(),
   "expectedState": zod.string(),
+  "originalState": zod.string(),
+  "currentApprovedState": zod.string(),
+  "lastChange": zod.union([zod.object({
+  "id": zod.string(),
+  "newState": zod.string(),
+  "effectiveScope": zod.enum(['this_shot', 'rest_of_scene', 'from_now_on']),
+  "sourceTakeId": zod.string(),
+  "sourceTakeNumber": zod.number().nullable(),
+  "userId": zod.string(),
+  "userDisplayName": zod.string().nullable(),
+  "reason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
   "sourceType": zod.string(),
   "confidence": zod.number().nullable(),
   "active": zod.boolean(),
@@ -602,11 +734,55 @@ export const CreateContinuityItemResponse = zod.object({
   "category": zod.string(),
   "entity": zod.string(),
   "expectedState": zod.string(),
+  "originalState": zod.string(),
+  "currentApprovedState": zod.string(),
+  "lastChange": zod.union([zod.object({
+  "id": zod.string(),
+  "newState": zod.string(),
+  "effectiveScope": zod.enum(['this_shot', 'rest_of_scene', 'from_now_on']),
+  "sourceTakeId": zod.string(),
+  "sourceTakeNumber": zod.number().nullable(),
+  "userId": zod.string(),
+  "userDisplayName": zod.string().nullable(),
+  "reason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
   "sourceType": zod.string(),
   "confidence": zod.number().nullable(),
   "active": zod.boolean(),
   "updatedAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary List approved continuity state history for a scene
+ */
+export const GetContinuityHistoryParams = zod.object({
+  "sceneId": zod.coerce.string()
+})
+
+export const GetContinuityHistoryResponseItem = zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "continuityItemId": zod.string(),
+  "entity": zod.string(),
+  "category": zod.string(),
+  "previousState": zod.string(),
+  "newState": zod.string(),
+  "effectiveScope": zod.enum(['this_shot', 'rest_of_scene', 'from_now_on']),
+  "effectiveFromTakeId": zod.string(),
+  "effectiveUntilTakeId": zod.string().nullable(),
+  "supersedesChangeId": zod.string().nullable(),
+  "sourceTakeId": zod.string(),
+  "sourceTakeNumber": zod.number(),
+  "shotId": zod.string(),
+  "shotLabel": zod.string(),
+  "userId": zod.string(),
+  "userDisplayName": zod.string().nullable(),
+  "reason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const GetContinuityHistoryResponse = zod.array(GetContinuityHistoryResponseItem)
 
 
 /**
@@ -634,6 +810,19 @@ export const UpdateContinuityItemResponse = zod.object({
   "category": zod.string(),
   "entity": zod.string(),
   "expectedState": zod.string(),
+  "originalState": zod.string(),
+  "currentApprovedState": zod.string(),
+  "lastChange": zod.union([zod.object({
+  "id": zod.string(),
+  "newState": zod.string(),
+  "effectiveScope": zod.enum(['this_shot', 'rest_of_scene', 'from_now_on']),
+  "sourceTakeId": zod.string(),
+  "sourceTakeNumber": zod.number().nullable(),
+  "userId": zod.string(),
+  "userDisplayName": zod.string().nullable(),
+  "reason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
   "sourceType": zod.string(),
   "confidence": zod.number().nullable(),
   "active": zod.boolean(),
@@ -659,12 +848,20 @@ export const CreateContinuityChangeParams = zod.object({
 })
 
 
+export const createContinuityChangeBodyNoteMax = 1000;
+
+export const createContinuityChangeBodyIdempotencyKeyMax = 240;
+
 
 
 export const CreateContinuityChangeBody = zod.object({
-  "newState": zod.string().min(1),
-  "effectiveScope": zod.string(),
-  "sourceTakeId": zod.string()
+  "newState": zod.string().min(1).optional(),
+  "effectiveScope": zod.enum(['this_shot', 'rest_of_scene', 'from_now_on', 'shot', 'scene', 'future']),
+  "sourceTakeId": zod.string().optional(),
+  "effectiveFromTakeId": zod.string().optional(),
+  "effectiveUntilTakeId": zod.string().nullish(),
+  "note": zod.string().max(createContinuityChangeBodyNoteMax).optional(),
+  "idempotencyKey": zod.string().max(createContinuityChangeBodyIdempotencyKeyMax).optional()
 })
 
 export const CreateContinuityChangeResponse = zod.object({
@@ -673,10 +870,425 @@ export const CreateContinuityChangeResponse = zod.object({
   "category": zod.string(),
   "entity": zod.string(),
   "expectedState": zod.string(),
+  "originalState": zod.string(),
+  "currentApprovedState": zod.string(),
+  "lastChange": zod.union([zod.object({
+  "id": zod.string(),
+  "newState": zod.string(),
+  "effectiveScope": zod.enum(['this_shot', 'rest_of_scene', 'from_now_on']),
+  "sourceTakeId": zod.string(),
+  "sourceTakeNumber": zod.number().nullable(),
+  "userId": zod.string(),
+  "userDisplayName": zod.string().nullable(),
+  "reason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
   "sourceType": zod.string(),
   "confidence": zod.number().nullable(),
   "active": zod.boolean(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Record a human continuity issue decision
+ */
+export const DecideContinuityIssueParams = zod.object({
+  "issueId": zod.coerce.string()
+})
+
+export const decideContinuityIssueBodyNewStateMax = 1000;
+
+export const decideContinuityIssueBodyNoteMax = 1000;
+
+
+
+export const DecideContinuityIssueBody = zod.object({
+  "status": zod.enum(['ignored', 'intentional']),
+  "effectiveScope": zod.enum(['this_shot', 'rest_of_scene', 'from_now_on']).optional(),
+  "newState": zod.string().max(decideContinuityIssueBodyNewStateMax).optional(),
+  "note": zod.string().max(decideContinuityIssueBodyNoteMax).optional()
+})
+
+export const decideContinuityIssueResponseOneConfidenceMin = 0;
+export const decideContinuityIssueResponseOneConfidenceMax = 1;
+
+export const decideContinuityIssueResponseTwoIssueConfidenceMin = 0;
+export const decideContinuityIssueResponseTwoIssueConfidenceMax = 1;
+
+
+
+export const DecideContinuityIssueResponse = zod.union([zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "takeId": zod.string(),
+  "analysisRunId": zod.string().nullable(),
+  "issueKey": zod.string(),
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "observedState": zod.string(),
+  "continuityItemId": zod.string().nullable(),
+  "stateDimension": zod.string(),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "confidence": zod.number().min(decideContinuityIssueResponseOneConfidenceMin).max(decideContinuityIssueResponseOneConfidenceMax),
+  "explanation": zod.string(),
+  "suggestedFix": zod.string().nullable(),
+  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored']),
+  "resolution": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "resolutionTakeId": zod.string().nullable(),
+  "resolvedByUserId": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable()
+}),zod.object({
+  "issue": zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "takeId": zod.string(),
+  "analysisRunId": zod.string().nullable(),
+  "issueKey": zod.string(),
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "observedState": zod.string(),
+  "continuityItemId": zod.string().nullable(),
+  "stateDimension": zod.string(),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "confidence": zod.number().min(decideContinuityIssueResponseTwoIssueConfidenceMin).max(decideContinuityIssueResponseTwoIssueConfidenceMax),
+  "explanation": zod.string(),
+  "suggestedFix": zod.string().nullable(),
+  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored']),
+  "resolution": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "resolutionTakeId": zod.string().nullable(),
+  "resolvedByUserId": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable()
+}),
+  "change": zod.union([zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "continuityItemId": zod.string(),
+  "previousState": zod.string(),
+  "newState": zod.string(),
+  "effectiveScope": zod.enum(['this_shot', 'rest_of_scene', 'from_now_on']),
+  "effectiveFromTakeId": zod.string(),
+  "effectiveUntilTakeId": zod.string().nullable(),
+  "supersedesChangeId": zod.string().nullable(),
+  "sourceTakeId": zod.string(),
+  "userId": zod.string(),
+  "reason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
+  "created": zod.boolean()
+})])
+
+
+/**
+ * @summary List issue decisions and notes
+ */
+export const GetContinuityIssueHistoryParams = zod.object({
+  "issueId": zod.coerce.string()
+})
+
+export const getContinuityIssueHistoryResponseIssueConfidenceMin = 0;
+export const getContinuityIssueHistoryResponseIssueConfidenceMax = 1;
+
+
+
+export const GetContinuityIssueHistoryResponse = zod.object({
+  "issue": zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "takeId": zod.string(),
+  "analysisRunId": zod.string().nullable(),
+  "issueKey": zod.string(),
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "observedState": zod.string(),
+  "continuityItemId": zod.string().nullable(),
+  "stateDimension": zod.string(),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "confidence": zod.number().min(getContinuityIssueHistoryResponseIssueConfidenceMin).max(getContinuityIssueHistoryResponseIssueConfidenceMax),
+  "explanation": zod.string(),
+  "suggestedFix": zod.string().nullable(),
+  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored']),
+  "resolution": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "resolutionTakeId": zod.string().nullable(),
+  "resolvedByUserId": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable()
+}),
+  "events": zod.array(zod.object({
+  "id": zod.string(),
+  "issueId": zod.string(),
+  "eventType": zod.string(),
+  "status": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "resolution": zod.string().nullable(),
+  "resolutionTakeId": zod.string().nullable(),
+  "userId": zod.string().nullable(),
+  "userDisplayName": zod.string().nullable(),
+  "metadata": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Add a note to a continuity issue
+ */
+export const AddContinuityIssueNoteParams = zod.object({
+  "issueId": zod.coerce.string()
+})
+
+export const addContinuityIssueNoteBodyNoteMax = 1000;
+
+
+
+export const AddContinuityIssueNoteBody = zod.object({
+  "note": zod.string().min(1).max(addContinuityIssueNoteBodyNoteMax)
+})
+
+export const addContinuityIssueNoteResponseConfidenceMin = 0;
+export const addContinuityIssueNoteResponseConfidenceMax = 1;
+
+
+
+export const AddContinuityIssueNoteResponse = zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "takeId": zod.string(),
+  "analysisRunId": zod.string().nullable(),
+  "issueKey": zod.string(),
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "observedState": zod.string(),
+  "continuityItemId": zod.string().nullable(),
+  "stateDimension": zod.string(),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "confidence": zod.number().min(addContinuityIssueNoteResponseConfidenceMin).max(addContinuityIssueNoteResponseConfidenceMax),
+  "explanation": zod.string(),
+  "suggestedFix": zod.string().nullable(),
+  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored']),
+  "resolution": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "resolutionTakeId": zod.string().nullable(),
+  "resolvedByUserId": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Ignore a continuity issue
+ */
+export const IgnoreContinuityIssueParams = zod.object({
+  "issueId": zod.coerce.string()
+})
+
+export const ignoreContinuityIssueBodyNoteMax = 1000;
+
+
+
+export const IgnoreContinuityIssueBody = zod.object({
+  "note": zod.string().min(1).max(ignoreContinuityIssueBodyNoteMax)
+})
+
+export const ignoreContinuityIssueResponseConfidenceMin = 0;
+export const ignoreContinuityIssueResponseConfidenceMax = 1;
+
+
+
+export const IgnoreContinuityIssueResponse = zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "takeId": zod.string(),
+  "analysisRunId": zod.string().nullable(),
+  "issueKey": zod.string(),
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "observedState": zod.string(),
+  "continuityItemId": zod.string().nullable(),
+  "stateDimension": zod.string(),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "confidence": zod.number().min(ignoreContinuityIssueResponseConfidenceMin).max(ignoreContinuityIssueResponseConfidenceMax),
+  "explanation": zod.string(),
+  "suggestedFix": zod.string().nullable(),
+  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored']),
+  "resolution": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "resolutionTakeId": zod.string().nullable(),
+  "resolvedByUserId": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Approve an intentional continuity change
+ */
+export const ApproveContinuityIssueChangeParams = zod.object({
+  "issueId": zod.coerce.string()
+})
+
+
+export const approveContinuityIssueChangeBodyNoteMax = 1000;
+
+export const approveContinuityIssueChangeBodyIdempotencyKeyMax = 240;
+
+
+
+export const ApproveContinuityIssueChangeBody = zod.object({
+  "newState": zod.string().min(1).optional(),
+  "effectiveScope": zod.enum(['this_shot', 'rest_of_scene', 'from_now_on', 'shot', 'scene', 'future']),
+  "sourceTakeId": zod.string().optional(),
+  "effectiveFromTakeId": zod.string().optional(),
+  "effectiveUntilTakeId": zod.string().nullish(),
+  "note": zod.string().max(approveContinuityIssueChangeBodyNoteMax).optional(),
+  "idempotencyKey": zod.string().max(approveContinuityIssueChangeBodyIdempotencyKeyMax).optional()
+})
+
+export const approveContinuityIssueChangeResponseIssueConfidenceMin = 0;
+export const approveContinuityIssueChangeResponseIssueConfidenceMax = 1;
+
+
+
+export const ApproveContinuityIssueChangeResponse = zod.object({
+  "issue": zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "takeId": zod.string(),
+  "analysisRunId": zod.string().nullable(),
+  "issueKey": zod.string(),
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "observedState": zod.string(),
+  "continuityItemId": zod.string().nullable(),
+  "stateDimension": zod.string(),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "confidence": zod.number().min(approveContinuityIssueChangeResponseIssueConfidenceMin).max(approveContinuityIssueChangeResponseIssueConfidenceMax),
+  "explanation": zod.string(),
+  "suggestedFix": zod.string().nullable(),
+  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored']),
+  "resolution": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "resolutionTakeId": zod.string().nullable(),
+  "resolvedByUserId": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable()
+}),
+  "change": zod.union([zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "continuityItemId": zod.string(),
+  "previousState": zod.string(),
+  "newState": zod.string(),
+  "effectiveScope": zod.enum(['this_shot', 'rest_of_scene', 'from_now_on']),
+  "effectiveFromTakeId": zod.string(),
+  "effectiveUntilTakeId": zod.string().nullable(),
+  "supersedesChangeId": zod.string().nullable(),
+  "sourceTakeId": zod.string(),
+  "userId": zod.string(),
+  "reason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
+  "created": zod.boolean()
+})
+
+
+/**
+ * @summary Run a new continuity check for an issue
+ */
+export const RecheckContinuityIssueParams = zod.object({
+  "issueId": zod.coerce.string()
+})
+
+export const RecheckContinuityIssueBody = zod.object({
+  "takeId": zod.string(),
+  "retry": zod.boolean().optional()
+})
+
+export const recheckContinuityIssueResponseIssuesItemConfidenceMin = 0;
+export const recheckContinuityIssueResponseIssuesItemConfidenceMax = 1;
+
+export const recheckContinuityIssueResponseObservationsItemConfidenceMin = 0;
+export const recheckContinuityIssueResponseObservationsItemConfidenceMax = 1;
+
+export const recheckContinuityIssueResponseObservationsItemRegionOneXMin = 0;
+export const recheckContinuityIssueResponseObservationsItemRegionOneXMax = 1;
+
+export const recheckContinuityIssueResponseObservationsItemRegionOneYMin = 0;
+export const recheckContinuityIssueResponseObservationsItemRegionOneYMax = 1;
+
+export const recheckContinuityIssueResponseObservationsItemRegionOneWidthMin = 0;
+export const recheckContinuityIssueResponseObservationsItemRegionOneWidthMax = 1;
+
+export const recheckContinuityIssueResponseObservationsItemRegionOneHeightMin = 0;
+export const recheckContinuityIssueResponseObservationsItemRegionOneHeightMax = 1;
+
+
+
+export const RecheckContinuityIssueResponse = zod.object({
+  "checkId": zod.string(),
+  "sceneId": zod.string(),
+  "shotId": zod.string(),
+  "takeId": zod.string(),
+  "referenceTakeId": zod.string().nullable(),
+  "status": zod.enum(['pending', 'analyzing', 'completed', 'failed']),
+  "issues": zod.array(zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "takeId": zod.string(),
+  "analysisRunId": zod.string().nullable(),
+  "issueKey": zod.string(),
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "observedState": zod.string(),
+  "continuityItemId": zod.string().nullable(),
+  "stateDimension": zod.string(),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "confidence": zod.number().min(recheckContinuityIssueResponseIssuesItemConfidenceMin).max(recheckContinuityIssueResponseIssuesItemConfidenceMax),
+  "explanation": zod.string(),
+  "suggestedFix": zod.string().nullable(),
+  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored']),
+  "resolution": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "resolutionTakeId": zod.string().nullable(),
+  "resolvedByUserId": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable()
+})),
+  "observations": zod.array(zod.object({
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "observedState": zod.string(),
+  "visibility": zod.enum(['visible', 'not_visible', 'obscured', 'absent', 'uncertain']),
+  "confidence": zod.number().min(recheckContinuityIssueResponseObservationsItemConfidenceMin).max(recheckContinuityIssueResponseObservationsItemConfidenceMax),
+  "region": zod.union([zod.object({
+  "x": zod.number().min(recheckContinuityIssueResponseObservationsItemRegionOneXMin).max(recheckContinuityIssueResponseObservationsItemRegionOneXMax),
+  "y": zod.number().min(recheckContinuityIssueResponseObservationsItemRegionOneYMin).max(recheckContinuityIssueResponseObservationsItemRegionOneYMax),
+  "width": zod.number().min(recheckContinuityIssueResponseObservationsItemRegionOneWidthMin).max(recheckContinuityIssueResponseObservationsItemRegionOneWidthMax),
+  "height": zod.number().min(recheckContinuityIssueResponseObservationsItemRegionOneHeightMin).max(recheckContinuityIssueResponseObservationsItemRegionOneHeightMax)
+}),zod.null()])
+})),
+  "model": zod.string(),
+  "checkedAt": zod.coerce.date(),
+  "schemaVersion": zod.string(),
+  "startedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "latencyMs": zod.number().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "comparison": zod.array(zod.object({
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "approvedState": zod.string(),
+  "currentState": zod.string().nullable(),
+  "visibility": zod.enum(['visible', 'not_visible', 'obscured', 'absent', 'uncertain']),
+  "mismatch": zod.boolean(),
+  "confidence": zod.number().nullable(),
+  "severity": zod.union([zod.literal('low'),zod.literal('medium'),zod.literal('high'),zod.literal(null)]).nullable()
+}))
 })
 
 
@@ -740,23 +1352,160 @@ export const DeleteMediaResponse = zod.void()
 
 
 /**
- * @summary Get the daily report shell
+ * @summary Get a persisted daily production report
  */
 export const GetDailyReportQueryParams = zod.object({
-  "projectId": zod.coerce.string()
+  "projectId": zod.coerce.string(),
+  "shootDate": zod.date().optional()
 })
 
+export const getDailyReportResponseUnresolvedIssuesItemConfidenceMin = 0;
+export const getDailyReportResponseUnresolvedIssuesItemConfidenceMax = 1;
+
+
+
 export const GetDailyReportResponse = zod.object({
+  "id": zod.string().nullable(),
   "available": zod.boolean(),
   "message": zod.string(),
-  "project": zod.string().nullable(),
-  "shootDate": zod.string().nullable(),
+  "status": zod.enum(['not_generated', 'generating', 'ready', 'failed']),
+  "projectId": zod.string(),
+  "project": zod.string(),
+  "shootDate": zod.coerce.date(),
   "scenesWorked": zod.number(),
+  "sceneSummaries": zod.array(zod.object({
+  "sceneId": zod.string(),
+  "sceneNumber": zod.string(),
+  "slugline": zod.string(),
+  "shotCount": zod.number(),
+  "takeCount": zod.number()
+})),
   "shots": zod.number(),
   "takeCount": zod.number(),
   "circleTakes": zod.number(),
-  "issuesCaught": zod.number(),
-  "unresolvedWarnings": zod.number()
+  "circleTakeDetails": zod.array(zod.object({
+  "takeId": zod.string(),
+  "sceneNumber": zod.string(),
+  "shotLabel": zod.string(),
+  "takeNumber": zod.number(),
+  "notes": zod.string().nullable(),
+  "continuityStatus": zod.enum(['all_clear', 'issues', 'not_checked'])
+})),
+  "issuesDetected": zod.number(),
+  "issuesFixed": zod.number(),
+  "issuesIntentional": zod.number(),
+  "issuesIgnored": zod.number(),
+  "unresolvedWarnings": zod.number(),
+  "unresolvedIssues": zod.array(zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "takeId": zod.string(),
+  "analysisRunId": zod.string().nullable(),
+  "issueKey": zod.string(),
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "observedState": zod.string(),
+  "continuityItemId": zod.string().nullable(),
+  "stateDimension": zod.string(),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "confidence": zod.number().min(getDailyReportResponseUnresolvedIssuesItemConfidenceMin).max(getDailyReportResponseUnresolvedIssuesItemConfidenceMax),
+  "explanation": zod.string(),
+  "suggestedFix": zod.string().nullable(),
+  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored']),
+  "resolution": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "resolutionTakeId": zod.string().nullable(),
+  "resolvedByUserId": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable()
+})),
+  "intentionalChanges": zod.array(zod.string()),
+  "notes": zod.array(zod.string()),
+  "narrative": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "generatedAt": zod.coerce.date().nullable(),
+  "updatedAt": zod.coerce.date(),
+  "errorMessage": zod.string().nullable(),
+  "agentTools": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Generate and persist a daily production report
+ */
+export const GenerateDailyReportBody = zod.object({
+  "projectId": zod.string(),
+  "shootDate": zod.coerce.date()
+})
+
+export const generateDailyReportResponseUnresolvedIssuesItemConfidenceMin = 0;
+export const generateDailyReportResponseUnresolvedIssuesItemConfidenceMax = 1;
+
+
+
+export const GenerateDailyReportResponse = zod.object({
+  "id": zod.string().nullable(),
+  "available": zod.boolean(),
+  "message": zod.string(),
+  "status": zod.enum(['not_generated', 'generating', 'ready', 'failed']),
+  "projectId": zod.string(),
+  "project": zod.string(),
+  "shootDate": zod.coerce.date(),
+  "scenesWorked": zod.number(),
+  "sceneSummaries": zod.array(zod.object({
+  "sceneId": zod.string(),
+  "sceneNumber": zod.string(),
+  "slugline": zod.string(),
+  "shotCount": zod.number(),
+  "takeCount": zod.number()
+})),
+  "shots": zod.number(),
+  "takeCount": zod.number(),
+  "circleTakes": zod.number(),
+  "circleTakeDetails": zod.array(zod.object({
+  "takeId": zod.string(),
+  "sceneNumber": zod.string(),
+  "shotLabel": zod.string(),
+  "takeNumber": zod.number(),
+  "notes": zod.string().nullable(),
+  "continuityStatus": zod.enum(['all_clear', 'issues', 'not_checked'])
+})),
+  "issuesDetected": zod.number(),
+  "issuesFixed": zod.number(),
+  "issuesIntentional": zod.number(),
+  "issuesIgnored": zod.number(),
+  "unresolvedWarnings": zod.number(),
+  "unresolvedIssues": zod.array(zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "takeId": zod.string(),
+  "analysisRunId": zod.string().nullable(),
+  "issueKey": zod.string(),
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "observedState": zod.string(),
+  "continuityItemId": zod.string().nullable(),
+  "stateDimension": zod.string(),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "confidence": zod.number().min(generateDailyReportResponseUnresolvedIssuesItemConfidenceMin).max(generateDailyReportResponseUnresolvedIssuesItemConfidenceMax),
+  "explanation": zod.string(),
+  "suggestedFix": zod.string().nullable(),
+  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored']),
+  "resolution": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "resolutionTakeId": zod.string().nullable(),
+  "resolvedByUserId": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable()
+})),
+  "intentionalChanges": zod.array(zod.string()),
+  "notes": zod.array(zod.string()),
+  "narrative": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "generatedAt": zod.coerce.date().nullable(),
+  "updatedAt": zod.coerce.date(),
+  "errorMessage": zod.string().nullable(),
+  "agentTools": zod.array(zod.string())
 })
 
 
@@ -1218,11 +1967,18 @@ export const GetContinuityCheckResponse = zod.object({
   "entity": zod.string(),
   "expectedState": zod.string(),
   "observedState": zod.string(),
+  "continuityItemId": zod.string().nullable(),
+  "stateDimension": zod.string(),
   "severity": zod.enum(['low', 'medium', 'high']),
   "confidence": zod.number().min(getContinuityCheckResponseIssuesItemConfidenceMin).max(getContinuityCheckResponseIssuesItemConfidenceMax),
   "explanation": zod.string(),
   "suggestedFix": zod.string().nullable(),
-  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored'])
+  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored']),
+  "resolution": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "resolutionTakeId": zod.string().nullable(),
+  "resolvedByUserId": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable()
 })),
   "observations": zod.array(zod.object({
   "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
@@ -1265,7 +2021,8 @@ export const RunContinuityCheckParams = zod.object({
 })
 
 export const RunContinuityCheckBody = zod.object({
-  "retry": zod.boolean().optional()
+  "retry": zod.boolean().optional(),
+  "recheckIssueId": zod.string().optional()
 })
 
 export const runContinuityCheckResponseIssuesItemConfidenceMin = 0;
@@ -1305,11 +2062,18 @@ export const RunContinuityCheckResponse = zod.object({
   "entity": zod.string(),
   "expectedState": zod.string(),
   "observedState": zod.string(),
+  "continuityItemId": zod.string().nullable(),
+  "stateDimension": zod.string(),
   "severity": zod.enum(['low', 'medium', 'high']),
   "confidence": zod.number().min(runContinuityCheckResponseIssuesItemConfidenceMin).max(runContinuityCheckResponseIssuesItemConfidenceMax),
   "explanation": zod.string(),
   "suggestedFix": zod.string().nullable(),
-  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored'])
+  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored']),
+  "resolution": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "resolutionTakeId": zod.string().nullable(),
+  "resolvedByUserId": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable()
 })),
   "observations": zod.array(zod.object({
   "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),

@@ -5,18 +5,42 @@
  * TakeKeeper production workflow API
  * OpenAPI spec version: 0.2.0
  */
+import type { CircleTakeSummary } from './circleTakeSummary';
+import type { ContinuityIssue } from './continuityIssue';
+import type { DailyReportStatus } from './dailyReportStatus';
+import type { SceneReportSummary } from './sceneReportSummary';
 
 export interface DailyReport {
+  /** @nullable */
+  id: string | null;
   available: boolean;
   message: string;
-  /** @nullable */
-  project: string | null;
-  /** @nullable */
-  shootDate: string | null;
+  status: DailyReportStatus;
+  projectId: string;
+  project: string;
+  shootDate: Date;
   scenesWorked: number;
+  sceneSummaries: SceneReportSummary[];
   shots: number;
   takeCount: number;
   circleTakes: number;
-  issuesCaught: number;
+  circleTakeDetails: CircleTakeSummary[];
+  issuesDetected: number;
+  issuesFixed: number;
+  issuesIntentional: number;
+  issuesIgnored: number;
   unresolvedWarnings: number;
+  unresolvedIssues: ContinuityIssue[];
+  intentionalChanges: string[];
+  notes: string[];
+  /** @nullable */
+  narrative: string | null;
+  /** @nullable */
+  model: string | null;
+  /** @nullable */
+  generatedAt: Date | null;
+  updatedAt: Date;
+  /** @nullable */
+  errorMessage: string | null;
+  agentTools: string[];
 }

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, count, desc, eq, inArray, isNull, max } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, max, or } from "drizzle-orm";
 import { z } from "zod";
 import {
   continuityIssuesTable,
@@ -15,6 +15,9 @@ import {
 } from "@workspace/db";
 import { trackEvent } from "../services/analytics";
 import { mediaStorage } from "../services/storage";
+import { approveContinuityItemChange, ContinuityDecisionError } from "../services/continuity/decisions";
+import { getContinuityOverview, resolveApprovedContinuityState } from "../services/continuity/approved-state";
+import { normalizeCategory, normalizeState } from "../services/continuity/normalization";
 
 const router: IRouter = Router();
 const idSchema = z.string().uuid();
@@ -108,15 +111,29 @@ async function ownedContinuityItem(userId: string, itemId: string) {
 }
 
 async function continuityResponse(sceneId: string) {
-  const rows = await db
-    .select()
-    .from(continuityItemsTable)
-    .where(and(eq(continuityItemsTable.sceneId, sceneId), eq(continuityItemsTable.active, true)))
-    .orderBy(continuityItemsTable.category, continuityItemsTable.entity);
-  return rows.map((item) => ({
-    ...item,
-    confidence: item.confidence === null ? null : Number(item.confidence),
-  }));
+  return getContinuityOverview(sceneId);
+}
+
+async function continuityItemResponse(sceneId: string, itemId: string) {
+  const item = (await getContinuityOverview(sceneId)).find((candidate) => candidate.id === itemId);
+  if (item) return item;
+  const [row] = await db.select().from(continuityItemsTable).where(and(eq(continuityItemsTable.id, itemId), eq(continuityItemsTable.sceneId, sceneId))).limit(1);
+  if (!row) return null;
+  const baseState = normalizeState(row.category, row.entity, row.expectedState);
+  return {
+    id: row.id,
+    sceneId: row.sceneId,
+    category: normalizeCategory(row.category),
+    entity: row.entity,
+    expectedState: baseState,
+    originalState: baseState,
+    currentApprovedState: baseState,
+    lastChange: null,
+    sourceType: row.sourceType,
+    confidence: row.confidence === null ? null : Number(row.confidence),
+    active: row.active,
+    updatedAt: row.updatedAt,
+  };
 }
 
 async function takeResponse(take: typeof takesTable.$inferSelect) {
@@ -125,9 +142,11 @@ async function takeResponse(take: typeof takesTable.$inferSelect) {
     .from(continuityIssuesTable)
     .where(eq(continuityIssuesTable.takeId, take.id));
   const [media] = await db.select().from(mediaTable).where(eq(mediaTable.takeId, take.id)).limit(1);
+  const { circleContinuitySnapshotJson, ...takeFields } = take;
   return {
-    ...take,
+    ...takeFields,
     referenceStatus: take.isReference ? "active" : take.referenceStatus,
+    circleContinuitySnapshot: circleContinuitySnapshotJson,
     issueCount,
     mediaUrl: media ? `/api/storage/objects/${media.storageKey}` : null,
   };
@@ -233,6 +252,20 @@ router.delete("/shots/:shotId", async (req, res): Promise<void> => {
   if (!row) return void res.status(404).json({ error: "Shot not found" });
   const shotTakes = await db.select({ id: takesTable.id }).from(takesTable).where(eq(takesTable.shotId, row.shot.id));
   const shotTakeIds = shotTakes.map((take) => take.id);
+  if (shotTakeIds.length) {
+    const [protectedChange] = await db
+      .select({ id: continuityStateChangesTable.id })
+      .from(continuityStateChangesTable)
+      .where(or(
+        inArray(continuityStateChangesTable.sourceTakeId, shotTakeIds),
+        inArray(continuityStateChangesTable.effectiveFromTakeId, shotTakeIds),
+        inArray(continuityStateChangesTable.effectiveUntilTakeId, shotTakeIds),
+      ))
+      .limit(1);
+    if (protectedChange) {
+      return void res.status(409).json({ error: "This shot is referenced by continuity history and cannot be deleted", code: "CONTINUITY_HISTORY_PROTECTED" });
+    }
+  }
   const shotMedia = shotTakeIds.length ? await db.select().from(mediaTable).where(inArray(mediaTable.takeId, shotTakeIds)) : [];
   try {
     await Promise.all(shotMedia.map((media) => mediaStorage.delete(media.storageKey)));
@@ -401,7 +434,37 @@ router.patch("/takes/:takeId", async (req, res): Promise<void> => {
       metadata: { sceneId: row.scene.id, shotId: row.shot.id, takeId: result.updated.id, takeNumber: result.updated.takeNumber, status: result.updated.status },
     });
   }
-  const updated = result.updated;
+  let updated = result.updated;
+  if (updated.isCircle && (!row.take.isCircle || !updated.circleContinuitySnapshotJson)) {
+    try {
+      const approvedState = await resolveApprovedContinuityState(row.scene.id, row.shot.id, updated.id);
+      const [marked] = await db.update(takesTable).set({
+        circleMarkedAt: new Date(),
+        circleMarkedByUserId: res.locals.userId as string,
+        circleContinuitySnapshotJson: {
+          sceneId: approvedState.sceneId,
+          shotId: approvedState.shotId,
+          takeId: approvedState.takeId,
+          referenceTakeId: approvedState.referenceTakeId,
+          items: approvedState.items.map((item) => ({
+            id: item.id,
+            category: item.category,
+            entity: item.entity,
+            originalState: item.originalState ?? item.expectedState,
+            approvedState: item.expectedState,
+            sourceType: item.sourceType,
+            confidence: item.confidence,
+            appliedChangeId: item.appliedChangeId ?? null,
+          })),
+          capturedAt: new Date().toISOString(),
+        },
+        updatedAt: new Date(),
+      }).where(eq(takesTable.id, updated.id)).returning();
+      if (marked) updated = marked;
+    } catch (error) {
+      req.log.warn({ error, takeId: updated.id }, "Circle saved without a continuity snapshot");
+    }
+  }
   res.json(await takeResponse(updated));
 });
 
@@ -410,6 +473,19 @@ router.delete("/takes/:takeId", async (req, res): Promise<void> => {
   if (!takeId.success) return void res.status(400).json({ error: "Invalid take id" });
   const row = await ownedTake(res.locals.userId as string, takeId.data);
   if (!row) return void res.status(404).json({ error: "Take not found" });
+
+  const [protectedChange] = await db
+    .select({ id: continuityStateChangesTable.id })
+    .from(continuityStateChangesTable)
+    .where(or(
+      eq(continuityStateChangesTable.sourceTakeId, row.take.id),
+      eq(continuityStateChangesTable.effectiveFromTakeId, row.take.id),
+      eq(continuityStateChangesTable.effectiveUntilTakeId, row.take.id),
+    ))
+    .limit(1);
+  if (protectedChange) {
+    return void res.status(409).json({ error: "This take is referenced by continuity history and cannot be deleted", code: "CONTINUITY_HISTORY_PROTECTED" });
+  }
 
   const media = await db.select().from(mediaTable).where(eq(mediaTable.takeId, row.take.id));
   try {
@@ -451,7 +527,7 @@ router.post("/scenes/:sceneId/continuity", async (req, res): Promise<void> => {
     confidence: body.data.confidence?.toFixed(4),
   }).returning();
   await trackEvent({ projectId: row.project.id, name: "continuity_item_created", metadata: { sceneId: row.scene.id, itemId: item.id } });
-  res.status(201).json({ ...item, confidence: item.confidence === null ? null : Number(item.confidence) });
+  res.status(201).json(await continuityItemResponse(row.scene.id, item.id));
 });
 
 router.patch("/continuity/:itemId", async (req, res): Promise<void> => {
@@ -467,7 +543,7 @@ router.patch("/continuity/:itemId", async (req, res): Promise<void> => {
   };
   const [item] = await db.update(continuityItemsTable).set(values).where(eq(continuityItemsTable.id, row.item.id)).returning();
   await trackEvent({ projectId: row.project.id, name: "continuity_item_updated", metadata: { itemId: item.id } });
-  res.json({ ...item, confidence: item.confidence === null ? null : Number(item.confidence) });
+  res.json(await continuityItemResponse(row.scene.id, item.id));
 });
 
 router.delete("/continuity/:itemId", async (req, res): Promise<void> => {
@@ -475,6 +551,14 @@ router.delete("/continuity/:itemId", async (req, res): Promise<void> => {
   if (!itemId.success) return void res.status(400).json({ error: "Invalid continuity item id" });
   const row = await ownedContinuityItem(res.locals.userId as string, itemId.data);
   if (!row) return void res.status(404).json({ error: "Continuity item not found" });
+  const [protectedChange] = await db
+    .select({ id: continuityStateChangesTable.id })
+    .from(continuityStateChangesTable)
+    .where(eq(continuityStateChangesTable.continuityItemId, row.item.id))
+    .limit(1);
+  if (protectedChange) {
+    return void res.status(409).json({ error: "This continuity item has approved history and cannot be deleted", code: "CONTINUITY_HISTORY_PROTECTED" });
+  }
   await db.delete(continuityItemsTable).where(eq(continuityItemsTable.id, row.item.id));
   await trackEvent({ projectId: row.project.id, name: "continuity_item_deleted", metadata: { itemId: row.item.id } });
   res.status(204).end();
@@ -483,32 +567,27 @@ router.delete("/continuity/:itemId", async (req, res): Promise<void> => {
 router.post("/continuity/:itemId/changes", async (req, res): Promise<void> => {
   const itemId = idSchema.safeParse(req.params.itemId);
   const body = z.object({
-    newState: z.string().min(1).max(1000),
-    effectiveScope: z.enum(["shot", "scene", "future"]),
+    newState: z.string().min(1).max(1000).optional(),
+    effectiveScope: z.enum(["this_shot", "rest_of_scene", "from_now_on", "shot", "scene", "future"]),
     sourceTakeId: idSchema,
+    effectiveFromTakeId: idSchema.optional(),
+    effectiveUntilTakeId: idSchema.nullable().optional(),
+    note: z.string().max(1000).optional(),
+    idempotencyKey: z.string().min(1).max(240).optional(),
   }).safeParse(req.body);
   if (!itemId.success || !body.success) return void res.status(400).json({ error: "Invalid continuity change" });
-  const row = await ownedContinuityItem(res.locals.userId as string, itemId.data);
-  const take = body.success ? await ownedTake(res.locals.userId as string, body.data.sourceTakeId) : undefined;
-  if (!row || !take || take.scene.id !== row.scene.id) return void res.status(404).json({ error: "Continuity context not found" });
-  await db.transaction(async (tx) => {
-    await tx.insert(continuityStateChangesTable).values({
-      sceneId: row.scene.id,
-      continuityItemId: row.item.id,
-      previousState: row.item.expectedState,
-      newState: body.data.newState,
-      effectiveScope: body.data.effectiveScope,
-      effectiveFromTakeId: take.take.id,
-      sourceTakeId: take.take.id,
-      userId: res.locals.userId as string,
-    });
-    if (body.data.effectiveScope !== "shot") {
-      await tx.update(continuityItemsTable).set({ expectedState: body.data.newState, updatedAt: new Date() }).where(eq(continuityItemsTable.id, row.item.id));
+  try {
+    const result = await approveContinuityItemChange(res.locals.userId as string, itemId.data, body.data);
+    const updated = await continuityItemResponse(result.item.sceneId, itemId.data);
+    res.status(result.created ? 201 : 200).json(updated);
+  } catch (error) {
+    if (error instanceof ContinuityDecisionError) {
+      const status = error.code.endsWith("NOT_FOUND") ? 404 : 409;
+      res.status(status).json({ error: error.message, code: error.code });
+      return;
     }
-  });
-  await trackEvent({ projectId: row.project.id, name: "issue_marked_intentional", metadata: { itemId: row.item.id, scope: body.data.effectiveScope } });
-  const [updated] = await db.select().from(continuityItemsTable).where(eq(continuityItemsTable.id, row.item.id));
-  res.status(201).json({ ...updated, confidence: updated.confidence === null ? null : Number(updated.confidence) });
+    throw error;
+  }
 });
 
 router.post("/media", async (req, res): Promise<void> => {
@@ -628,32 +707,6 @@ router.delete("/media/:mediaId", async (req, res): Promise<void> => {
   }
   await db.delete(mediaTable).where(eq(mediaTable.id, media.media.id));
   res.status(204).end();
-});
-
-router.get("/reports/daily", async (req, res): Promise<void> => {
-  const projectId = idSchema.safeParse(req.query.projectId);
-  if (!projectId.success) return void res.status(400).json({ error: "Invalid project id" });
-  const [project] = await db.select().from(projectsTable).where(and(eq(projectsTable.id, projectId.data), eq(projectsTable.ownerId, res.locals.userId as string))).limit(1);
-  if (!project) return void res.status(404).json({ error: "Project not found" });
-  const scenes = await db.select({ id: scenesTable.id }).from(scenesTable).where(eq(scenesTable.projectId, project.id));
-  const sceneIds = scenes.map((scene) => scene.id);
-  const shots = sceneIds.length ? await db.select({ id: shotsTable.id }).from(shotsTable).where(inArray(shotsTable.sceneId, sceneIds)) : [];
-  const shotIds = shots.map((shot) => shot.id);
-  const takes = shotIds.length ? await db.select().from(takesTable).where(inArray(takesTable.shotId, shotIds)) : [];
-  const takeIds = takes.map((take) => take.id);
-  const issues = takeIds.length ? await db.select().from(continuityIssuesTable).where(inArray(continuityIssuesTable.takeId, takeIds)) : [];
-  res.json({
-    available: false,
-    message: "Daily report generation will be connected to the Report Agent in Phase 3.",
-    project: project.title,
-    shootDate: new Date().toISOString().slice(0, 10),
-    scenesWorked: scenes.length,
-    shots: shots.length,
-    takeCount: takes.length,
-    circleTakes: takes.filter((take) => take.isCircle).length,
-    issuesCaught: issues.length,
-    unresolvedWarnings: issues.filter((issue) => issue.status === "open").length,
-  });
 });
 
 export default router;

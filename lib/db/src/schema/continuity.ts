@@ -26,6 +26,8 @@ export const continuityAnalysisRunsTable = pgTable(
     status: text("status").notNull().default("pending"),
     model: text("model"),
     schemaVersion: text("schema_version").notNull().default("continuity-v1"),
+    recheckIssueId: uuid("recheck_issue_id"),
+    requestedByUserId: text("requested_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
     startedAt: timestamp("started_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     latencyMs: integer("latency_ms"),
@@ -37,6 +39,7 @@ export const continuityAnalysisRunsTable = pgTable(
     uniqueIndex("continuity_analysis_runs_attempt_uidx").on(table.kind, table.takeId, table.attemptId),
     index("continuity_analysis_runs_take_kind_idx").on(table.takeId, table.kind, table.createdAt),
     index("continuity_analysis_runs_scene_idx").on(table.sceneId, table.createdAt),
+    index("continuity_analysis_runs_recheck_issue_idx").on(table.recheckIssueId),
   ],
 );
 
@@ -89,6 +92,8 @@ export const continuityIssuesTable = pgTable(
     entity: text("entity").notNull(),
     expectedState: text("expected_state").notNull(),
     observedState: text("observed_state").notNull(),
+    continuityItemId: uuid("continuity_item_id").references(() => continuityItemsTable.id, { onDelete: "set null" }),
+    stateDimension: text("state_dimension").notNull().default("state"),
     severity: text("severity").notNull(),
     confidence: numeric("confidence", { precision: 5, scale: 4 }),
     issueKey: text("issue_key"),
@@ -96,6 +101,9 @@ export const continuityIssuesTable = pgTable(
     suggestedFix: text("suggested_fix"),
     status: text("status").notNull().default("open"),
     resolution: text("resolution"),
+    notes: text("notes"),
+    resolutionTakeId: uuid("resolution_take_id").references(() => takesTable.id, { onDelete: "set null" }),
+    resolvedByUserId: text("resolved_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
@@ -105,6 +113,7 @@ export const continuityIssuesTable = pgTable(
     index("continuity_issues_take_idx").on(table.takeId, table.createdAt),
     index("continuity_issues_run_idx").on(table.analysisRunId),
     index("continuity_issues_take_key_idx").on(table.takeId, table.issueKey),
+    index("continuity_issues_item_idx").on(table.continuityItemId),
   ],
 );
 
@@ -122,10 +131,33 @@ export const continuityStateChangesTable = pgTable(
     supersedesChangeId: uuid("supersedes_change_id"),
     sourceTakeId: uuid("source_take_id").notNull().references(() => takesTable.id, { onDelete: "cascade" }),
     userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "restrict" }),
+    reason: text("reason"),
+    decisionKey: text("decision_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("state_changes_scene_idx").on(table.sceneId),
     index("state_changes_item_idx").on(table.continuityItemId),
+    uniqueIndex("state_changes_decision_uidx").on(table.decisionKey),
+  ],
+);
+
+export const continuityIssueEventsTable = pgTable(
+  "continuity_issue_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    issueId: uuid("issue_id").notNull().references(() => continuityIssuesTable.id, { onDelete: "cascade" }),
+    eventType: text("event_type").notNull(),
+    status: text("status"),
+    note: text("note"),
+    resolution: text("resolution"),
+    resolutionTakeId: uuid("resolution_take_id").references(() => takesTable.id, { onDelete: "set null" }),
+    userId: text("user_id").references(() => usersTable.id, { onDelete: "set null" }),
+    metadataJson: jsonb("metadata_json"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("continuity_issue_events_issue_idx").on(table.issueId, table.createdAt),
+    index("continuity_issue_events_user_idx").on(table.userId),
   ],
 );

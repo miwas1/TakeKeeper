@@ -2,11 +2,12 @@ import type { z } from "zod";
 import { GoogleGenAI, Type } from "@google/genai";
 import {
   continuitySupervisorOutputSchema,
-  dailyReportSchema,
+  dailyReportNarrativeSchema,
   screenplayBreakdownSchema,
   sceneBreakdownSchema,
   visualStateResultSchema,
   type ContinuityIssueDraft,
+  type DailyReportFacts,
   type VisualObservation,
 } from "@workspace/takekeeper-domain";
 import { env } from "../../config/env";
@@ -37,14 +38,14 @@ export const takeKeeperAgents = {
   report: {
     name: "report-agent",
     purpose: "Compile validated production activity into a daily continuity report.",
-    outputSchema: dailyReportSchema,
+    outputSchema: dailyReportNarrativeSchema,
   },
 } satisfies Record<string, AgentDefinition<unknown>>;
 
 export const googleAiConfig = {
   provider: "google",
-  runtime: "google-adk",
-  deploymentTarget: "agent-engine",
+  runtime: "google-genai-sdk",
+  deploymentTarget: env.AGENT_ENGINE_ID ? "agent-engine" : "local-workflow",
   model: env.GEMINI_MODEL,
   cloudProject: env.GOOGLE_CLOUD_PROJECT,
   location: env.GOOGLE_CLOUD_LOCATION,
@@ -403,4 +404,41 @@ export async function runContinuitySupervisor(input: ContinuitySupervisorInput):
     issues: typeof parsed === "object" && parsed !== null && "issues" in parsed ? parsed.issues : [],
   });
   return { issues: validated.issues, model: env.GEMINI_MODEL };
+}
+
+const dailyReportResponseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    summary: {
+      type: Type.STRING,
+      description: "A concise, factual production continuity summary for the crew. Do not invent numbers or events.",
+    },
+  },
+  required: ["summary"],
+} as const;
+
+const dailyReportPrompt = `You are TakeKeeper's Report Agent. Write a concise production continuity summary for a crew from the validated structured records supplied below.
+The application, not you, owns every count and record. Do not invent, round, reinterpret, or contradict counts, scenes, takes, Circle Takes, issue states, intentional changes, unresolved issues, or notes. Mention only facts present in the input. If there is no activity, say that no takes were recorded for the selected shoot day. Keep the summary useful and operational: call out unresolved warnings and intentional changes when present. Do not expose hidden reasoning, credentials, raw prompts, or database details. Return JSON matching the supplied schema exactly. `;
+
+export async function generateDailyReport(input: {
+  project: { id: string; title: string };
+  facts: DailyReportFacts;
+}): Promise<{ summary: string; model: string }> {
+  if (!ai) throw new Error("Gemini API key is not configured");
+  const response = await ai.models.generateContent({
+    model: env.GEMINI_MODEL,
+    contents: [{
+      role: "user",
+      parts: [{ text: `${dailyReportPrompt}\n\nPROJECT:\n${JSON.stringify(input.project)}\n\nVALIDATED SHOOT-DAY RECORDS:\n${JSON.stringify(input.facts)}` }],
+    }],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: dailyReportResponseSchema,
+      maxOutputTokens: 1200,
+      temperature: 0.1,
+    },
+  });
+  const parsed = parseGeminiJson(response.text, "Gemini returned an empty daily report");
+  const narrative = dailyReportNarrativeSchema.parse(parsed);
+  return { summary: narrative.summary, model: env.GEMINI_MODEL };
 }

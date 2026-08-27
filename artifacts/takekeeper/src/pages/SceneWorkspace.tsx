@@ -10,7 +10,7 @@ import {
   useUpdateContinuityItem,
   type ContinuityItem,
 } from "@workspace/api-client-react";
-import { ArrowLeft, BookOpen, Camera, Clapperboard, Edit3, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Camera, Clapperboard, Edit3, History, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +65,7 @@ export default function SceneWorkspace() {
     setEditingItem(item);
     setCategory(item.category);
     setEntity(item.entity);
-    setExpectedState(item.expectedState);
+    setExpectedState(item.currentApprovedState);
     setContinuityOpen(true);
   }
 
@@ -147,7 +147,7 @@ export default function SceneWorkspace() {
               <h2 className="text-lg font-semibold">Continuity Bible</h2>
               <p className="text-sm text-muted-foreground">Approved states future takes should match.</p>
             </div>
-            <Button onClick={openAddItem} size="sm"><Plus className="mr-2 h-4 w-4" /> Add Item</Button>
+            <div className="flex gap-2"><Link href={`/scenes/${sceneId}/continuity-history`}><Button variant="outline" size="sm"><History className="mr-2 h-4 w-4" /> History</Button></Link><Button onClick={openAddItem} size="sm"><Plus className="mr-2 h-4 w-4" /> Add Item</Button></div>
           </div>
           {grouped.length === 0 ? (
             <Card className="border-dashed"><CardContent className="py-12 text-center">
@@ -166,7 +166,9 @@ export default function SceneWorkspace() {
                         <span className="font-medium">{item.entity}</span>
                         <Badge variant="outline" className="text-[9px]">{item.sourceType}</Badge>
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{item.expectedState}</p>
+                      <p className="mt-1 text-sm text-foreground">{item.currentApprovedState}</p>
+                      {item.originalState !== item.currentApprovedState && <p className="mt-1 text-xs text-muted-foreground">Originally: {item.originalState}</p>}
+                      {item.lastChange && <p className="mt-2 text-[10px] font-mono uppercase text-primary">Changed intentionally · Take {item.lastChange.sourceTakeNumber ?? "—"} · {item.lastChange.effectiveScope.replaceAll("_", " ")}</p>}
                     </div>
                     <Button variant="ghost" size="icon" aria-label={`Edit ${item.entity}`} onClick={() => openEditItem(item)}><Edit3 className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" aria-label={`Delete ${item.entity}`} onClick={() => removeItem(item)}><Trash2 className="h-4 w-4 text-destructive" /></Button>

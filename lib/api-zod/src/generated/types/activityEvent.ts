@@ -5,15 +5,19 @@
  * TakeKeeper production workflow API
  * OpenAPI spec version: 0.2.0
  */
+import type { ActivityEventMetadata } from './activityEventMetadata';
 
 export interface ActivityEvent {
   id: string;
   agent: string;
   action: string;
+  /** @nullable */
+  toolName: string | null;
   status: string;
   /** @nullable */
   latencyMs?: number | null;
   createdAt: Date;
   /** @nullable */
   projectTitle: string | null;
+  metadata: ActivityEventMetadata;
 }

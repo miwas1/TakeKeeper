@@ -1,0 +1,22 @@
+TakeKeeper — Not Yet Implemented
+As of 2026-08-27
+
+The following items are still outstanding:
+
+1. The Last Cup live evaluation has not been executed. This workspace does not contain the real Reference A / Take B demo images or a Last Cup fixture, so the real Gemini comparison result has not been verified here.
+
+2. Hosted Google Cloud Agent Engine deployment is not wired. The current implementation uses the Google Gemini API through the local ADK-compatible ContinuityCheckWorkflow, while Agent Engine identifiers remain configuration for deployment.
+
+3. Production authentication is not enabled. The local development identity is active in development, while production authentication remains fail-closed until the intended identity provider is configured.
+
+4. A live multi-take acceptance harness with real Gemini outputs is not implemented. Phase 7/8 have deterministic normalization, persisted reporting, and disposable PGlite coverage, but real model behavior still needs validation with production-like media.
+
+5. The Report Agent is implemented, but a real credentialed Gemini report-generation run has not been verified in this workspace. The UI records a safe failed report when Gemini is unavailable; it does not fabricate a narrative.
+
+6. Demo-project reset and PDF export are not implemented. They are optional follow-up conveniences, not prerequisites for the persisted report flow.
+
+7. Video-based continuity analysis, thumbnails, and frame-level analysis are not implemented. The current workflow analyzes stored still images.
+
+8. RevenueCat, OneSignal, scheduling, casting, budgeting, screenplay writing, storyboards, and editing are intentionally outside the current scope.
+
+The implemented Phase 6/7/8 workflows are still subject to live Google credential, media, production authentication, and Agent Engine deployment validation.

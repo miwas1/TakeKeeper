@@ -49,6 +49,9 @@ paths:
       summary: List persisted production activity
       parameters:
         - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/ActivityAgent"
+        - $ref: "#/components/parameters/ActivityStatus"
       responses:
         "200":
           description: Activity
@@ -385,6 +388,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ContinuityItem"
+  /scenes/{sceneId}/continuity/history:
+    get:
+      operationId: getContinuityHistory
+      tags: [continuity]
+      summary: List approved continuity state history for a scene
+      parameters:
+        - $ref: "#/components/parameters/SceneId"
+      responses:
+        "200":
+          description: Continuity state history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContinuityHistoryEntry"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /continuity/{itemId}:
     patch:
       operationId: updateContinuityItem
@@ -434,6 +455,122 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ContinuityItem"
+  /continuity/issues/{issueId}:
+    patch:
+      operationId: decideContinuityIssue
+      tags: [continuity]
+      summary: Record a human continuity issue decision
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContinuityIssueDecisionInput"
+      responses:
+        "200":
+          description: Recorded decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContinuityDecisionResponse"
+  /continuity/issues/{issueId}/history:
+    get:
+      operationId: getContinuityIssueHistory
+      tags: [continuity]
+      summary: List issue decisions and notes
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+      responses:
+        "200":
+          description: Issue history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContinuityIssueHistory"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /continuity/issues/{issueId}/notes:
+    post:
+      operationId: addContinuityIssueNote
+      tags: [continuity]
+      summary: Add a note to a continuity issue
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContinuityIssueNoteInput"
+      responses:
+        "201":
+          description: Updated issue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContinuityIssue"
+  /continuity/issues/{issueId}/ignore:
+    post:
+      operationId: ignoreContinuityIssue
+      tags: [continuity]
+      summary: Ignore a continuity issue
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContinuityIssueNoteInput"
+      responses:
+        "200":
+          description: Ignored issue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContinuityIssue"
+  /continuity/issues/{issueId}/intentional:
+    post:
+      operationId: approveContinuityIssueChange
+      tags: [continuity]
+      summary: Approve an intentional continuity change
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContinuityChangeInput"
+      responses:
+        "201":
+          description: Approved continuity change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContinuityDecision"
+  /continuity/issues/{issueId}/recheck:
+    post:
+      operationId: recheckContinuityIssue
+      tags: [continuity]
+      summary: Run a new continuity check for an issue
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContinuityRecheckInput"
+      responses:
+        "202":
+          description: Recheck started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContinuityCheck"
   /storage/uploads/request-url:
     post:
       operationId: requestUploadUrl
@@ -489,12 +626,33 @@ paths:
     get:
       operationId: getDailyReport
       tags: [reports]
-      summary: Get the daily report shell
+      summary: Get a persisted daily production report
       parameters:
         - $ref: "#/components/parameters/ProjectIdQuery"
+        - name: shootDate
+          in: query
+          required: false
+          schema: { type: string, format: date }
       responses:
         "200":
-          description: Report readiness
+          description: Daily report and current factual records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReport"
+    post:
+      operationId: generateDailyReport
+      tags: [reports]
+      summary: Generate and persist a daily production report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateDailyReportInput"
+      responses:
+        "200":
+          description: Generated report or safe generation failure
           content:
             application/json:
               schema:
@@ -693,6 +851,11 @@ components:
       in: path
       required: true
       schema: { type: string }
+    IssueId:
+      name: issueId
+      in: path
+      required: true
+      schema: { type: string }
     ImportId:
       name: importId
       in: path
@@ -707,6 +870,25 @@ components:
         minimum: 1
         maximum: 100
         default: 25
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: number
+        minimum: 0
+        maximum: 10000
+        default: 0
+    ActivityAgent:
+      name: agent
+      in: query
+      required: false
+      schema: { type: string }
+    ActivityStatus:
+      name: status
+      in: query
+      required: false
+      schema: { type: string, enum: [started, completed, failed] }
   responses:
     BadRequest:
       description: Invalid request
@@ -724,7 +906,32 @@ components:
       properties:
         status: { type: string }
         database: { type: string }
-      required: [status, database]
+        environment: { type: string }
+        auth: { type: string }
+        latestAgentLatencyMs: { type: [number, "null"] }
+        agent: { $ref: "#/components/schemas/AgentReadiness" }
+        storage: { $ref: "#/components/schemas/StorageReadiness" }
+      required: [status, database, environment, auth, latestAgentLatencyMs, agent, storage]
+    AgentReadiness:
+      type: object
+      properties:
+        provider: { type: string }
+        runtime: { type: string }
+        deploymentTarget: { type: string }
+        model: { type: string }
+        status: { type: string, enum: [ready, not_configured] }
+        apiKeyConfigured: { type: boolean }
+        cloudProjectConfigured: { type: boolean }
+        agentEngineConfigured: { type: boolean }
+      required: [provider, runtime, deploymentTarget, model, status, apiKeyConfigured, cloudProjectConfigured, agentEngineConfigured]
+    StorageReadiness:
+      type: object
+      properties:
+        provider: { type: string }
+        status: { type: string, enum: [ready, configuration_required] }
+        bucketConfigured: { type: boolean }
+        privateDirectoryConfigured: { type: boolean }
+      required: [provider, status, bucketConfigured, privateDirectoryConfigured]
     ErrorResponse:
       type: object
       properties:
@@ -838,10 +1045,39 @@ components:
         capturedAt: { type: string, format: date-time }
         isReference: { type: boolean }
         isCircle: { type: boolean }
+        circleMarkedAt: { type: [string, "null"], format: date-time }
+        circleMarkedByUserId: { type: [string, "null"] }
+        circleContinuitySnapshot:
+          oneOf:
+            - $ref: "#/components/schemas/CircleContinuitySnapshot"
+            - type: "null"
         referenceStatus: { type: string, enum: [none, active, superseded] }
         issueCount: { type: number }
         mediaUrl: { type: [string, "null"] }
-      required: [id, shotId, takeNumber, status, notes, capturedAt, isReference, isCircle, referenceStatus, issueCount, mediaUrl]
+      required: [id, shotId, takeNumber, status, notes, capturedAt, isReference, isCircle, circleMarkedAt, circleMarkedByUserId, circleContinuitySnapshot, referenceStatus, issueCount, mediaUrl]
+    CircleContinuitySnapshot:
+      type: object
+      properties:
+        sceneId: { type: string }
+        shotId: { type: string }
+        takeId: { type: string }
+        referenceTakeId: { type: [string, "null"] }
+        capturedAt: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: [string, "null"] }
+              category: { type: string }
+              entity: { type: string }
+              originalState: { type: string }
+              approvedState: { type: string }
+              sourceType: { type: string }
+              confidence: { type: [number, "null"] }
+              appliedChangeId: { type: [string, "null"] }
+            required: [id, category, entity, originalState, approvedState, sourceType, confidence, appliedChangeId]
+      required: [sceneId, shotId, takeId, referenceTakeId, capturedAt, items]
     TakeInput:
       type: object
       properties:
@@ -865,11 +1101,30 @@ components:
         category: { type: string }
         entity: { type: string }
         expectedState: { type: string }
+        originalState: { type: string }
+        currentApprovedState: { type: string }
+        lastChange:
+          oneOf:
+            - $ref: "#/components/schemas/ContinuityItemLastChange"
+            - type: "null"
         sourceType: { type: string }
         confidence: { type: [number, "null"] }
         active: { type: boolean }
         updatedAt: { type: string, format: date-time }
-      required: [id, sceneId, category, entity, expectedState, sourceType, confidence, active, updatedAt]
+      required: [id, sceneId, category, entity, expectedState, originalState, currentApprovedState, lastChange, sourceType, confidence, active, updatedAt]
+    ContinuityItemLastChange:
+      type: object
+      properties:
+        id: { type: string }
+        newState: { type: string }
+        effectiveScope: { type: string, enum: [this_shot, rest_of_scene, from_now_on] }
+        sourceTakeId: { type: string }
+        sourceTakeNumber: { type: [number, "null"] }
+        userId: { type: string }
+        userDisplayName: { type: [string, "null"] }
+        reason: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, newState, effectiveScope, sourceTakeId, sourceTakeNumber, userId, userDisplayName, reason, createdAt]
     ContinuityItemInput:
       type: object
       properties:
@@ -891,9 +1146,32 @@ components:
       type: object
       properties:
         newState: { type: string, minLength: 1 }
-        effectiveScope: { type: string }
+        effectiveScope: { type: string, enum: [this_shot, rest_of_scene, from_now_on, shot, scene, future] }
         sourceTakeId: { type: string }
-      required: [newState, effectiveScope, sourceTakeId]
+        effectiveFromTakeId: { type: string }
+        effectiveUntilTakeId: { type: [string, "null"] }
+        note: { type: string, maxLength: 1000 }
+        idempotencyKey: { type: string, maxLength: 240 }
+      required: [effectiveScope]
+    ContinuityIssueNoteInput:
+      type: object
+      properties:
+        note: { type: string, minLength: 1, maxLength: 1000 }
+      required: [note]
+    ContinuityIssueDecisionInput:
+      type: object
+      properties:
+        status: { type: string, enum: [ignored, intentional] }
+        effectiveScope: { type: string, enum: [this_shot, rest_of_scene, from_now_on] }
+        newState: { type: string, maxLength: 1000 }
+        note: { type: string, maxLength: 1000 }
+      required: [status]
+    ContinuityRecheckInput:
+      type: object
+      properties:
+        takeId: { type: string }
+        retry: { type: boolean }
+      required: [takeId]
     VisualStateAnalysisInput:
       type: object
       properties:
@@ -937,6 +1215,7 @@ components:
       type: object
       properties:
         retry: { type: boolean }
+        recheckIssueId: { type: string }
     ContinuityIssue:
       type: object
       properties:
@@ -949,12 +1228,100 @@ components:
         entity: { type: string }
         expectedState: { type: string }
         observedState: { type: string }
+        continuityItemId: { type: [string, "null"] }
+        stateDimension: { type: string }
         severity: { type: string, enum: [low, medium, high] }
         confidence: { type: number, minimum: 0, maximum: 1 }
         explanation: { type: string }
         suggestedFix: { type: [string, "null"] }
         status: { type: string, enum: [open, fixed, intentional, ignored] }
-      required: [id, sceneId, takeId, analysisRunId, issueKey, category, entity, expectedState, observedState, severity, confidence, explanation, suggestedFix, status]
+        resolution: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        resolutionTakeId: { type: [string, "null"] }
+        resolvedByUserId: { type: [string, "null"] }
+        resolvedAt: { type: [string, "null"], format: date-time }
+      required: [id, sceneId, takeId, analysisRunId, issueKey, category, entity, expectedState, observedState, severity, confidence, explanation, suggestedFix, status, continuityItemId, stateDimension, resolution, notes, resolutionTakeId, resolvedByUserId, resolvedAt]
+    ContinuityDecision:
+      type: object
+      properties:
+        issue: { $ref: "#/components/schemas/ContinuityIssue" }
+        change:
+          oneOf:
+            - $ref: "#/components/schemas/ContinuityDecisionChange"
+            - type: "null"
+        created: { type: boolean }
+      required: [issue, change, created]
+    ContinuityDecisionResponse:
+      oneOf:
+        - $ref: "#/components/schemas/ContinuityIssue"
+        - $ref: "#/components/schemas/ContinuityDecision"
+    ContinuityDecisionChange:
+      type: object
+      properties:
+        id: { type: string }
+        sceneId: { type: string }
+        continuityItemId: { type: string }
+        previousState: { type: string }
+        newState: { type: string }
+        effectiveScope: { type: string, enum: [this_shot, rest_of_scene, from_now_on] }
+        effectiveFromTakeId: { type: string }
+        effectiveUntilTakeId: { type: [string, "null"] }
+        supersedesChangeId: { type: [string, "null"] }
+        sourceTakeId: { type: string }
+        userId: { type: string }
+        reason: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, sceneId, continuityItemId, previousState, newState, effectiveScope, effectiveFromTakeId, effectiveUntilTakeId, supersedesChangeId, sourceTakeId, userId, reason, createdAt]
+    ContinuityHistoryEntry:
+      type: object
+      properties:
+        id: { type: string }
+        sceneId: { type: string }
+        continuityItemId: { type: string }
+        entity: { type: string }
+        category: { type: string }
+        previousState: { type: string }
+        newState: { type: string }
+        effectiveScope: { type: string, enum: [this_shot, rest_of_scene, from_now_on] }
+        effectiveFromTakeId: { type: string }
+        effectiveUntilTakeId: { type: [string, "null"] }
+        supersedesChangeId: { type: [string, "null"] }
+        sourceTakeId: { type: string }
+        sourceTakeNumber: { type: number }
+        shotId: { type: string }
+        shotLabel: { type: string }
+        userId: { type: string }
+        userDisplayName: { type: [string, "null"] }
+        reason: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, sceneId, continuityItemId, entity, category, previousState, newState, effectiveScope, effectiveFromTakeId, effectiveUntilTakeId, supersedesChangeId, sourceTakeId, sourceTakeNumber, shotId, shotLabel, userId, userDisplayName, reason, createdAt]
+    ContinuityIssueHistory:
+      type: object
+      properties:
+        issue: { $ref: "#/components/schemas/ContinuityIssue" }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/ContinuityIssueEvent" }
+      required: [issue, events]
+    ContinuityIssueEvent:
+      type: object
+      properties:
+        id: { type: string }
+        issueId: { type: string }
+        eventType: { type: string }
+        status: { type: [string, "null"] }
+        note: { type: [string, "null"] }
+        resolution: { type: [string, "null"] }
+        resolutionTakeId: { type: [string, "null"] }
+        userId: { type: [string, "null"] }
+        userDisplayName: { type: [string, "null"] }
+        metadata:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+        createdAt: { type: string, format: date-time }
+      required: [id, issueId, eventType, status, note, resolution, resolutionTakeId, userId, userDisplayName, metadata, createdAt]
     ContinuityComparison:
       type: object
       properties:
@@ -1039,11 +1406,17 @@ components:
         id: { type: string }
         agent: { type: string }
         action: { type: string }
+        toolName: { type: [string, "null"] }
         status: { type: string }
         latencyMs: { type: [number, "null"] }
         createdAt: { type: string, format: date-time }
         projectTitle: { type: [string, "null"] }
-      required: [id, agent, action, status, createdAt, projectTitle]
+        metadata:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+      required: [id, agent, action, toolName, status, createdAt, projectTitle, metadata]
     Dashboard:
       type: object
       properties:
@@ -1081,17 +1454,71 @@ components:
     DailyReport:
       type: object
       properties:
+        id: { type: [string, "null"] }
         available: { type: boolean }
         message: { type: string }
-        project: { type: [string, "null"] }
-        shootDate: { type: [string, "null"] }
+        status: { type: string, enum: [not_generated, generating, ready, failed] }
+        projectId: { type: string }
+        project: { type: string }
+        shootDate: { type: string, format: date }
         scenesWorked: { type: number }
+        sceneSummaries:
+          type: array
+          items: { $ref: "#/components/schemas/SceneReportSummary" }
         shots: { type: number }
         takeCount: { type: number }
         circleTakes: { type: number }
-        issuesCaught: { type: number }
+        circleTakeDetails:
+          type: array
+          items: { $ref: "#/components/schemas/CircleTakeSummary" }
+        issuesDetected: { type: number }
+        issuesFixed: { type: number }
+        issuesIntentional: { type: number }
+        issuesIgnored: { type: number }
         unresolvedWarnings: { type: number }
-      required: [available, message, project, shootDate, scenesWorked, shots, takeCount, circleTakes, issuesCaught, unresolvedWarnings]
+        unresolvedIssues:
+          type: array
+          items: { $ref: "#/components/schemas/ContinuityIssue" }
+        intentionalChanges:
+          type: array
+          items: { type: string }
+        notes:
+          type: array
+          items: { type: string }
+        narrative: { type: [string, "null"] }
+        model: { type: [string, "null"] }
+        generatedAt: { type: [string, "null"], format: date-time }
+        updatedAt: { type: string, format: date-time }
+        errorMessage: { type: [string, "null"] }
+        agentTools:
+          type: array
+          items: { type: string }
+      required: [id, available, message, status, projectId, project, shootDate, scenesWorked, sceneSummaries, shots, takeCount, circleTakes, circleTakeDetails, issuesDetected, issuesFixed, issuesIntentional, issuesIgnored, unresolvedWarnings, unresolvedIssues, intentionalChanges, notes, narrative, model, generatedAt, updatedAt, errorMessage, agentTools]
+    SceneReportSummary:
+      type: object
+      properties:
+        sceneId: { type: string }
+        sceneNumber: { type: string }
+        slugline: { type: string }
+        shotCount: { type: number }
+        takeCount: { type: number }
+      required: [sceneId, sceneNumber, slugline, shotCount, takeCount]
+    CircleTakeSummary:
+      type: object
+      properties:
+        takeId: { type: string }
+        sceneNumber: { type: string }
+        shotLabel: { type: string }
+        takeNumber: { type: number }
+        notes: { type: [string, "null"] }
+        continuityStatus: { type: string, enum: [all_clear, issues, not_checked] }
+      required: [takeId, sceneNumber, shotLabel, takeNumber, notes, continuityStatus]
+    GenerateDailyReportInput:
+      type: object
+      properties:
+        projectId: { type: string }
+        shootDate: { type: string, format: date }
+      required: [projectId, shootDate]
     ScreenplayImportInput:
       type: object
       properties:

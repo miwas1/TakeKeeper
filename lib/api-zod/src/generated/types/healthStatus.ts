@@ -5,8 +5,16 @@
  * TakeKeeper production workflow API
  * OpenAPI spec version: 0.2.0
  */
+import type { AgentReadiness } from './agentReadiness';
+import type { StorageReadiness } from './storageReadiness';
 
 export interface HealthStatus {
   status: string;
   database: string;
+  environment: string;
+  auth: string;
+  /** @nullable */
+  latestAgentLatencyMs: number | null;
+  agent: AgentReadiness;
+  storage: StorageReadiness;
 }

@@ -5,6 +5,7 @@
  * TakeKeeper production workflow API
  * OpenAPI spec version: 0.2.0
  */
+import type { CircleContinuitySnapshot } from './circleContinuitySnapshot';
 import type { TakeReferenceStatus } from './takeReferenceStatus';
 
 export interface Take {
@@ -17,6 +18,11 @@ export interface Take {
   capturedAt: Date;
   isReference: boolean;
   isCircle: boolean;
+  /** @nullable */
+  circleMarkedAt: Date | null;
+  /** @nullable */
+  circleMarkedByUserId: string | null;
+  circleContinuitySnapshot: CircleContinuitySnapshot | null;
   referenceStatus: TakeReferenceStatus;
   issueCount: number;
   /** @nullable */
