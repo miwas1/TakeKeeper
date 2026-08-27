@@ -587,6 +587,80 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScreenplayImport"
+  /takes/{takeId}/visual-state:
+    get:
+      operationId: getTakeVisualState
+      tags: [continuity]
+      summary: Get the latest Visual State analysis for a take
+      parameters:
+        - $ref: "#/components/parameters/TakeId"
+      responses:
+        "200":
+          description: Visual State analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisualStateAnalysis"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: analyzeTakeVisualState
+      tags: [continuity]
+      summary: Analyze a take image with the Visual State Agent
+      parameters:
+        - $ref: "#/components/parameters/TakeId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VisualStateAnalysisInput"
+      responses:
+        "202":
+          description: Visual State analysis started or already running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisualStateAnalysis"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /takes/{takeId}/continuity-check:
+    get:
+      operationId: getContinuityCheck
+      tags: [continuity]
+      summary: Get the latest continuity comparison for a take
+      parameters:
+        - $ref: "#/components/parameters/TakeId"
+      responses:
+        "200":
+          description: Continuity comparison
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContinuityCheck"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: runContinuityCheck
+      tags: [continuity]
+      summary: Run the Continuity Supervisor for a take
+      parameters:
+        - $ref: "#/components/parameters/TakeId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContinuityCheckInput"
+      responses:
+        "202":
+          description: Continuity check started or already running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContinuityCheck"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   parameters:
     ProjectId:
@@ -820,6 +894,105 @@ components:
         effectiveScope: { type: string }
         sourceTakeId: { type: string }
       required: [newState, effectiveScope, sourceTakeId]
+    VisualStateAnalysisInput:
+      type: object
+      properties:
+        force: { type: boolean }
+    VisualObservation:
+      type: object
+      properties:
+        category: { type: string, enum: [wardrobe, props, hair_makeup, blocking, set, action, other] }
+        entity: { type: string }
+        observedState: { type: string }
+        visibility: { type: string, enum: [visible, not_visible, obscured, absent, uncertain] }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        region:
+          oneOf:
+            - type: object
+              properties:
+                x: { type: number, minimum: 0, maximum: 1 }
+                y: { type: number, minimum: 0, maximum: 1 }
+                width: { type: number, minimum: 0, maximum: 1 }
+                height: { type: number, minimum: 0, maximum: 1 }
+              required: [x, y, width, height]
+            - type: "null"
+      required: [category, entity, observedState, visibility, confidence, region]
+    VisualStateAnalysis:
+      type: object
+      properties:
+        analysisRunId: { type: string }
+        takeId: { type: string }
+        status: { type: string, enum: [pending, analyzing, completed, failed] }
+        model: { type: [string, "null"] }
+        schemaVersion: { type: string }
+        startedAt: { type: [string, "null"], format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        latencyMs: { type: [number, "null"] }
+        errorMessage: { type: [string, "null"] }
+        observations:
+          type: array
+          items: { $ref: "#/components/schemas/VisualObservation" }
+      required: [analysisRunId, takeId, status, model, schemaVersion, startedAt, completedAt, latencyMs, errorMessage, observations]
+    ContinuityCheckInput:
+      type: object
+      properties:
+        retry: { type: boolean }
+    ContinuityIssue:
+      type: object
+      properties:
+        id: { type: string }
+        sceneId: { type: string }
+        takeId: { type: string }
+        analysisRunId: { type: [string, "null"] }
+        issueKey: { type: string }
+        category: { type: string, enum: [wardrobe, props, hair_makeup, blocking, set, action, other] }
+        entity: { type: string }
+        expectedState: { type: string }
+        observedState: { type: string }
+        severity: { type: string, enum: [low, medium, high] }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        explanation: { type: string }
+        suggestedFix: { type: [string, "null"] }
+        status: { type: string, enum: [open, fixed, intentional, ignored] }
+      required: [id, sceneId, takeId, analysisRunId, issueKey, category, entity, expectedState, observedState, severity, confidence, explanation, suggestedFix, status]
+    ContinuityComparison:
+      type: object
+      properties:
+        category: { type: string, enum: [wardrobe, props, hair_makeup, blocking, set, action, other] }
+        entity: { type: string }
+        approvedState: { type: string }
+        currentState: { type: [string, "null"] }
+        visibility: { type: string, enum: [visible, not_visible, obscured, absent, uncertain] }
+        mismatch: { type: boolean }
+        confidence: { type: [number, "null"] }
+        severity: { type: [string, "null"], enum: [low, medium, high, null] }
+      required: [category, entity, approvedState, currentState, visibility, mismatch, confidence, severity]
+    ContinuityCheck:
+      type: object
+      properties:
+        checkId: { type: string }
+        sceneId: { type: string }
+        shotId: { type: string }
+        takeId: { type: string }
+        referenceTakeId: { type: [string, "null"] }
+        status: { type: string, enum: [pending, analyzing, completed, failed] }
+        issues:
+          type: array
+          items: { $ref: "#/components/schemas/ContinuityIssue" }
+        observations:
+          type: array
+          items: { $ref: "#/components/schemas/VisualObservation" }
+        model: { type: string }
+        checkedAt: { type: string, format: date-time }
+        schemaVersion: { type: string }
+        startedAt: { type: [string, "null"], format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        latencyMs: { type: [number, "null"] }
+        errorMessage: { type: [string, "null"] }
+        comparison:
+          type: array
+          items: { $ref: "#/components/schemas/ContinuityComparison" }
+      required: [checkId, sceneId, shotId, takeId, referenceTakeId, status, issues, observations, model, checkedAt, schemaVersion, startedAt, completedAt, latencyMs, errorMessage, comparison]
     Media:
       type: object
       properties:

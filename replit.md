@@ -23,7 +23,7 @@ For local testing outside Replit, set `DATABASE_URL` to an absolute `pglite://` 
 - OpenAPI + Orval + Zod
 - Replit App Storage
 - Google Gemini / ADK / Agent Engine architecture only
-- Google Gemini Script Breakdown runtime using the server-only `GEMINI_API_KEY` secret
+- Google Gemini Script Breakdown, Visual State, and Continuity Supervisor runtimes using the server-only `GEMINI_API_KEY` secret
 
 ## Source of truth
 
@@ -44,9 +44,9 @@ For local testing outside Replit, set `DATABASE_URL` to an absolute `pglite://` 
 
 ## Product boundaries
 
-Phase 3 adds a real Script Breakdown Agent to the working product shell. Pasted and `.txt` screenplay text is saved before analysis, Gemini output is validated before review, and only explicit approval writes scenes and script-sourced continuity items. Phase 4 adds the web-first shooting-media workflow: protected reference/take uploads, local previews, retry-safe persistence, take history, notes, statuses, and reference replacement history.
+Phase 3 adds a real Script Breakdown Agent to the working product shell. Pasted and `.txt` screenplay text is saved before analysis, Gemini output is validated before review, and only explicit approval writes scenes and script-sourced continuity items. Phase 4 adds the web-first shooting-media workflow: protected reference/take uploads, local previews, retry-safe persistence, take history, notes, statuses, and reference replacement history. Phase 6 adds persisted Visual State and Continuity Supervisor runs, deterministic approved-state resolution, normalized validated issues, retries, activity logging, and real Results data.
 
-Do not fabricate continuity observations, issues, confidence scores, comparisons, or "all clear" results. Script Breakdown confidence must come from validated Gemini output or filmmaker review. Visual Results and Reports remain explicit shells until their Google agents are implemented.
+Do not fabricate continuity observations, issues, confidence scores, comparisons, or "all clear" results. Script Breakdown, Visual State, and Continuity Supervisor confidence must come from validated Google output or filmmaker review. Reports remain an explicit shell until the Report Agent is implemented.
 
 Preserve original screenplay text when analysis fails. The model never writes application state directly; ownership-checked application routes save sources, reviews, approvals, and safe agent events. Preserve manual Continuity Bible items when approving script-derived items.
 

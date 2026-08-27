@@ -2,12 +2,17 @@ import { z } from "zod";
 
 export const issueStatuses = ["open", "fixed", "intentional", "ignored"] as const;
 export const effectiveScopes = ["this_shot", "rest_of_scene", "from_now_on"] as const;
+export const continuityCategories = ["wardrobe", "props", "hair_makeup", "blocking", "set", "action", "other"] as const;
+export const issueSeverities = ["low", "medium", "high"] as const;
+export const observationVisibilityStates = ["visible", "not_visible", "obscured", "absent", "uncertain"] as const;
+export const analysisRunKinds = ["visual_state", "continuity_check"] as const;
+export const analysisRunStatuses = ["pending", "analyzing", "completed", "failed"] as const;
 
 export const continuityItemSchema = z.object({
-  category: z.string().min(1),
+  category: z.enum(continuityCategories),
   entity: z.string().min(1),
   expectedState: z.string().min(1),
-  sourceType: z.enum(["script", "reference", "approved_change", "manual"]),
+  sourceType: z.enum(["script", "reference", "approved_change", "manual", "agent"]),
   confidence: z.number().min(0).max(1).nullable().optional(),
   active: z.boolean().default(true),
 });
@@ -66,10 +71,11 @@ export const screenplayImportSchema = z.object({
 });
 
 export const visualObservationSchema = z.object({
-  category: z.string().min(1),
+  category: z.enum(continuityCategories),
   entity: z.string().min(1),
   observedState: z.string().min(1),
   confidence: z.number().min(0).max(1),
+  visibility: z.enum(observationVisibilityStates).default("visible"),
   region: z.object({
     x: z.number().min(0).max(1),
     y: z.number().min(0).max(1),
@@ -85,23 +91,40 @@ export const visualStateResultSchema = z.object({
   model: z.string().min(1),
 });
 
-export const continuityIssueSchema = z.object({
-  category: z.string().min(1),
+export const continuityIssueDraftSchema = z.object({
+  category: z.enum(continuityCategories),
   entity: z.string().min(1),
   expectedState: z.string().min(1),
   observedState: z.string().min(1),
-  severity: z.enum(["info", "warning", "critical"]),
+  severity: z.enum(issueSeverities),
   confidence: z.number().min(0).max(1),
   explanation: z.string().min(1),
   suggestedFix: z.string().nullable(),
+});
+
+export const continuityIssueSchema = continuityIssueDraftSchema.extend({
+  id: z.string().uuid().optional(),
+  sceneId: z.string().uuid().optional(),
+  takeId: z.string().uuid().optional(),
+  analysisRunId: z.string().uuid().nullable().optional(),
+  issueKey: z.string().min(1).optional(),
   status: z.enum(issueStatuses),
 });
 
+export const continuitySupervisorOutputSchema = z.object({
+  issues: z.array(continuityIssueDraftSchema),
+});
+
 export const continuityCheckResultSchema = z.object({
-  sceneId: z.string().min(1),
-  takeId: z.string().min(1),
+  checkId: z.string().uuid().optional(),
+  sceneId: z.string().uuid(),
+  shotId: z.string().uuid(),
+  takeId: z.string().uuid(),
+  referenceTakeId: z.string().uuid().nullable(),
+  status: z.enum(analysisRunStatuses),
   issues: z.array(continuityIssueSchema),
   observations: z.array(visualObservationSchema),
+  model: z.string().min(1),
   checkedAt: z.string().datetime(),
 });
 
@@ -143,7 +166,9 @@ export type ScreenplayImport = z.infer<typeof screenplayImportSchema>;
 export type ContinuityItem = z.infer<typeof continuityItemSchema>;
 export type VisualObservation = z.infer<typeof visualObservationSchema>;
 export type VisualStateResult = z.infer<typeof visualStateResultSchema>;
+export type ContinuityIssueDraft = z.infer<typeof continuityIssueDraftSchema>;
 export type ContinuityIssue = z.infer<typeof continuityIssueSchema>;
+export type ContinuitySupervisorOutput = z.infer<typeof continuitySupervisorOutputSchema>;
 export type ContinuityCheckResult = z.infer<typeof continuityCheckResultSchema>;
 export type StateChangeDecision = z.infer<typeof stateChangeDecisionSchema>;
 export type AgentEvent = z.infer<typeof agentEventSchema>;

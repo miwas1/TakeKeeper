@@ -8,6 +8,8 @@
     "seed": "tsx ./src/seed.ts",
     "test:media-security": "tsx ./src/media-security.test.ts",
     "test:phase4-workflow": "tsx ./src/phase4-media-workflow.test.ts",
+    "test:phase6-normalization": "tsx ../artifacts/api-server/src/services/continuity/normalization.test.ts",
+    "test:phase6-failure-workflow": "tsx ./src/phase6-failure-workflow.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

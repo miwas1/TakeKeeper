@@ -2,9 +2,7 @@
 
 **Know what changed before you roll again.**
 
-TakeKeeper is an agentic visual continuity supervisor for film crews. It is being built for the Replit track of the Agentic Cinema Hackathon. The current build includes the Phase 3 Script Breakdown Agent and Phase 4 shooting-media workflow: projects can save pasted or `.txt` screenplays, analyze them with Google Gemini, review the extracted scenes and continuity, then capture durable reference and take media for production.
-
-The visual comparison workflow is intentionally not implemented yet. There are no fake AI results.
+TakeKeeper is an agentic visual continuity supervisor for film crews. It is being built for the Replit track of the Agentic Cinema Hackathon. The current build includes the Phase 3 Script Breakdown Agent, the Phase 4 shooting-media workflow, and the Phase 6 Google Visual State + Continuity Supervisor workflow: crews can save screenplay-derived continuity, capture durable reference and take media, run structured Gemini analysis, and review persisted comparison results.
 
 ## What the current build includes
 
@@ -22,7 +20,7 @@ The visual comparison workflow is intentionally not implemented yet. There are n
 - Scene workspaces with screenplay text, continuity editing, and shot planning
 - Reference setup and new-take capture backed by Replit App Storage
 - Take status controls including Circle Take
-- Honest results and daily-report shells with AI generation explicitly deferred
+- Honest daily-report shell with AI generation explicitly deferred
 - Saved screenplay sources with retry-safe analysis state
 - Real Google Gemini scene and continuity extraction with structured-output validation
 - Scene-batched analysis for feature-length screenplays without asking Gemini to echo the full source
@@ -30,10 +28,13 @@ The visual comparison workflow is intentionally not implemented yet. There are n
 - Web-first reference and take capture with file picker, drag-and-drop, local previews, progress, retry, and optional mobile camera hint
 - Client-side image inspection, orientation-aware preparation, resize/compression, and server-side signature/dimension verification
 - Idempotent media registration and take submission, shot-locked take numbering, reference replacement history, take notes, shot notes, status controls, and safe media cleanup
+- Deterministic approved-state resolution across the Continuity Bible, reference observations, human edits, and applicable approved changes
+- Google Gemini Visual State and Continuity Supervisor runs with persisted status, schema version, latency, error metadata, and retry-safe issue persistence
+- Normalized, confidence-calibrated continuity issues with visibility-aware comparison and a developer inspector
 
 The main production path is:
 
-`Projects → Scene → Shot → Shoot → Reference / New Take → persisted history`
+`Projects → Scene → Shot → Shoot → Reference / New Take → Continuity Results`
 
 ## Stack
 
@@ -43,7 +44,7 @@ The main production path is:
 - OpenAPI-first API contracts with Orval-generated hooks and Zod validators
 - Zod domain validation
 - Replit App Storage
-- Google Gemini runtime for Script Breakdown; Google Cloud Agent Engine remains the later deployment boundary
+- Google Gemini runtime for Script Breakdown, Visual State, and Continuity Supervisor; Google Cloud Agent Engine is the deployment boundary
 
 No OpenAI, Anthropic, Claude, OpenRouter, LangChain, or non-Google model integration is present.
 
@@ -57,7 +58,7 @@ artifacts/
   api-server/                 Express API
     src/config/               validated server environment
     src/middlewares/          identity boundary
-    src/routes/               health, production CRUD, media upload, activity, reports
+    src/routes/               health, production CRUD, media upload, continuity analysis, activity, reports
     src/services/             repositories, analytics, storage, Google AI
     src/tools/                validated application-tool contracts
 lib/
@@ -76,7 +77,7 @@ scripts/
 | --- | --- |
 | Identity and access | `users`, `projects`, `project_members`, `entitlements` |
 | Production | `screenplay_sources`, `scenes`, `shots`, `takes`, `media` |
-| Continuity | `continuity_items`, `observations`, `continuity_issues`, `continuity_state_changes` |
+| Continuity | `continuity_analysis_runs`, `continuity_items`, `observations`, `continuity_issues`, `continuity_state_changes` |
 | Operations | `agent_events` |
 
 Foreign keys, ownership indexes, unique constraints, timestamps, and cascade behavior are defined in `lib/db/src/schema/`. Images and video are never stored in PostgreSQL; `media.storage_key` stores only an App Storage object path.
@@ -88,19 +89,19 @@ Development schema changes use Drizzle Kit against Replit PostgreSQL. Replit Pub
 ```text
 TakeKeeper web
   → TakeKeeper API
-  → Gemini
-  → validated TakeKeeper review and approval tools
+  → Google Gemini through the ADK-compatible ContinuityCheckWorkflow
+  → validated TakeKeeper observation and issue tools
   → PostgreSQL / App Storage
 ```
 
 Server-side agent definitions:
 
 - Script Breakdown Agent — live for pasted and `.txt` screenplay sources
-- Visual State Agent
-- Continuity Supervisor Agent
+- Visual State Agent — extracts only visible, structured state from an approved image or take
+- Continuity Supervisor Agent — compares structured observations with the resolved approved state
 - Report Agent
 
-Every agent output has a shared Zod schema. Gemini cannot mutate the database. Screenplay source saving, review edits, scene/continuity approval, ownership checks, and agent-event recording execute in validated application code. The remaining agent definitions are not runtime features yet.
+Every agent output has a shared Zod schema. Gemini cannot mutate the database. `ContinuityCheckWorkflow` deterministically loads only the relevant scene, shot, take, Continuity Bible, reference observations, current observations, script requirements, and approved changes; it then validates and persists issues through application tools. Tool calls and agent actions are recorded in `agent_events`. The Report Agent remains a later phase.
 
 ## Authentication foundation
 
@@ -143,7 +144,7 @@ Local media is stored in `.takekeeper/object-storage` by default. Set `TAKEKEEPE
 | `DEFAULT_OBJECT_STORAGE_BUCKET_ID` | yes for PostgreSQL | Replit App Storage bucket |
 | `PRIVATE_OBJECT_DIR` | yes for PostgreSQL | Replit private object namespace |
 | `GEMINI_MODEL` | optional | central Gemini model selection; defaults to `gemini-2.5-flash` |
-| `GEMINI_API_KEY` | yes for Script Breakdown | Google Gemini credential stored only in Replit Secrets |
+| `GEMINI_API_KEY` | yes for Script Breakdown, Visual State, and Continuity Supervisor | Google Gemini credential stored only in Replit Secrets |
 | `GOOGLE_CLOUD_PROJECT` | later | Google Cloud project for ADK / Agent Engine |
 | `GOOGLE_CLOUD_LOCATION` | optional | Google Cloud region; defaults to `us-central1` |
 | `AGENT_ENGINE_ID` | later | deployed Agent Engine identifier |
@@ -173,6 +174,8 @@ Replit workflows run the API server and web app with their required ports and ba
 
 **Phase 4:** reliable web-first reference and take media capture, protected App Storage persistence, retry-safe uploads, take history, notes, statuses, reference replacement history, and cleanup.
 
-**Next:** production authentication, visual state extraction, continuity comparison, human issue resolution, approved state changes, and reporting.
+**Phase 6:** Google Gemini Visual State extraction, deterministic approved-state resolution, ADK-compatible ContinuityCheckWorkflow orchestration, validated issue persistence, confidence/severity calibration, visibility-aware normalization, retries, idempotency, activity logging, and real Results integration.
+
+**Next:** human issue resolution memory, deeper Fix & Recheck behavior, scoped continuity state history, and the Daily Report Agent.
 
 RevenueCat, OneSignal, scheduling, casting, budgeting, screenplay writing, storyboards, and editing are intentionally outside this phase.

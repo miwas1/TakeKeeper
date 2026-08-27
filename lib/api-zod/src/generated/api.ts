@@ -1070,3 +1070,277 @@ export const RetryScreenplayImportResponse = zod.object({
 })
 
 
+/**
+ * @summary Get the latest Visual State analysis for a take
+ */
+export const GetTakeVisualStateParams = zod.object({
+  "takeId": zod.coerce.string()
+})
+
+export const getTakeVisualStateResponseObservationsItemConfidenceMin = 0;
+export const getTakeVisualStateResponseObservationsItemConfidenceMax = 1;
+
+export const getTakeVisualStateResponseObservationsItemRegionOneXMin = 0;
+export const getTakeVisualStateResponseObservationsItemRegionOneXMax = 1;
+
+export const getTakeVisualStateResponseObservationsItemRegionOneYMin = 0;
+export const getTakeVisualStateResponseObservationsItemRegionOneYMax = 1;
+
+export const getTakeVisualStateResponseObservationsItemRegionOneWidthMin = 0;
+export const getTakeVisualStateResponseObservationsItemRegionOneWidthMax = 1;
+
+export const getTakeVisualStateResponseObservationsItemRegionOneHeightMin = 0;
+export const getTakeVisualStateResponseObservationsItemRegionOneHeightMax = 1;
+
+
+
+export const GetTakeVisualStateResponse = zod.object({
+  "analysisRunId": zod.string(),
+  "takeId": zod.string(),
+  "status": zod.enum(['pending', 'analyzing', 'completed', 'failed']),
+  "model": zod.string().nullable(),
+  "schemaVersion": zod.string(),
+  "startedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "latencyMs": zod.number().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "observations": zod.array(zod.object({
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "observedState": zod.string(),
+  "visibility": zod.enum(['visible', 'not_visible', 'obscured', 'absent', 'uncertain']),
+  "confidence": zod.number().min(getTakeVisualStateResponseObservationsItemConfidenceMin).max(getTakeVisualStateResponseObservationsItemConfidenceMax),
+  "region": zod.union([zod.object({
+  "x": zod.number().min(getTakeVisualStateResponseObservationsItemRegionOneXMin).max(getTakeVisualStateResponseObservationsItemRegionOneXMax),
+  "y": zod.number().min(getTakeVisualStateResponseObservationsItemRegionOneYMin).max(getTakeVisualStateResponseObservationsItemRegionOneYMax),
+  "width": zod.number().min(getTakeVisualStateResponseObservationsItemRegionOneWidthMin).max(getTakeVisualStateResponseObservationsItemRegionOneWidthMax),
+  "height": zod.number().min(getTakeVisualStateResponseObservationsItemRegionOneHeightMin).max(getTakeVisualStateResponseObservationsItemRegionOneHeightMax)
+}),zod.null()])
+}))
+})
+
+
+/**
+ * @summary Analyze a take image with the Visual State Agent
+ */
+export const AnalyzeTakeVisualStateParams = zod.object({
+  "takeId": zod.coerce.string()
+})
+
+export const AnalyzeTakeVisualStateBody = zod.object({
+  "force": zod.boolean().optional()
+})
+
+export const analyzeTakeVisualStateResponseObservationsItemConfidenceMin = 0;
+export const analyzeTakeVisualStateResponseObservationsItemConfidenceMax = 1;
+
+export const analyzeTakeVisualStateResponseObservationsItemRegionOneXMin = 0;
+export const analyzeTakeVisualStateResponseObservationsItemRegionOneXMax = 1;
+
+export const analyzeTakeVisualStateResponseObservationsItemRegionOneYMin = 0;
+export const analyzeTakeVisualStateResponseObservationsItemRegionOneYMax = 1;
+
+export const analyzeTakeVisualStateResponseObservationsItemRegionOneWidthMin = 0;
+export const analyzeTakeVisualStateResponseObservationsItemRegionOneWidthMax = 1;
+
+export const analyzeTakeVisualStateResponseObservationsItemRegionOneHeightMin = 0;
+export const analyzeTakeVisualStateResponseObservationsItemRegionOneHeightMax = 1;
+
+
+
+export const AnalyzeTakeVisualStateResponse = zod.object({
+  "analysisRunId": zod.string(),
+  "takeId": zod.string(),
+  "status": zod.enum(['pending', 'analyzing', 'completed', 'failed']),
+  "model": zod.string().nullable(),
+  "schemaVersion": zod.string(),
+  "startedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "latencyMs": zod.number().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "observations": zod.array(zod.object({
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "observedState": zod.string(),
+  "visibility": zod.enum(['visible', 'not_visible', 'obscured', 'absent', 'uncertain']),
+  "confidence": zod.number().min(analyzeTakeVisualStateResponseObservationsItemConfidenceMin).max(analyzeTakeVisualStateResponseObservationsItemConfidenceMax),
+  "region": zod.union([zod.object({
+  "x": zod.number().min(analyzeTakeVisualStateResponseObservationsItemRegionOneXMin).max(analyzeTakeVisualStateResponseObservationsItemRegionOneXMax),
+  "y": zod.number().min(analyzeTakeVisualStateResponseObservationsItemRegionOneYMin).max(analyzeTakeVisualStateResponseObservationsItemRegionOneYMax),
+  "width": zod.number().min(analyzeTakeVisualStateResponseObservationsItemRegionOneWidthMin).max(analyzeTakeVisualStateResponseObservationsItemRegionOneWidthMax),
+  "height": zod.number().min(analyzeTakeVisualStateResponseObservationsItemRegionOneHeightMin).max(analyzeTakeVisualStateResponseObservationsItemRegionOneHeightMax)
+}),zod.null()])
+}))
+})
+
+
+/**
+ * @summary Get the latest continuity comparison for a take
+ */
+export const GetContinuityCheckParams = zod.object({
+  "takeId": zod.coerce.string()
+})
+
+export const getContinuityCheckResponseIssuesItemConfidenceMin = 0;
+export const getContinuityCheckResponseIssuesItemConfidenceMax = 1;
+
+export const getContinuityCheckResponseObservationsItemConfidenceMin = 0;
+export const getContinuityCheckResponseObservationsItemConfidenceMax = 1;
+
+export const getContinuityCheckResponseObservationsItemRegionOneXMin = 0;
+export const getContinuityCheckResponseObservationsItemRegionOneXMax = 1;
+
+export const getContinuityCheckResponseObservationsItemRegionOneYMin = 0;
+export const getContinuityCheckResponseObservationsItemRegionOneYMax = 1;
+
+export const getContinuityCheckResponseObservationsItemRegionOneWidthMin = 0;
+export const getContinuityCheckResponseObservationsItemRegionOneWidthMax = 1;
+
+export const getContinuityCheckResponseObservationsItemRegionOneHeightMin = 0;
+export const getContinuityCheckResponseObservationsItemRegionOneHeightMax = 1;
+
+
+
+export const GetContinuityCheckResponse = zod.object({
+  "checkId": zod.string(),
+  "sceneId": zod.string(),
+  "shotId": zod.string(),
+  "takeId": zod.string(),
+  "referenceTakeId": zod.string().nullable(),
+  "status": zod.enum(['pending', 'analyzing', 'completed', 'failed']),
+  "issues": zod.array(zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "takeId": zod.string(),
+  "analysisRunId": zod.string().nullable(),
+  "issueKey": zod.string(),
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "observedState": zod.string(),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "confidence": zod.number().min(getContinuityCheckResponseIssuesItemConfidenceMin).max(getContinuityCheckResponseIssuesItemConfidenceMax),
+  "explanation": zod.string(),
+  "suggestedFix": zod.string().nullable(),
+  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored'])
+})),
+  "observations": zod.array(zod.object({
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "observedState": zod.string(),
+  "visibility": zod.enum(['visible', 'not_visible', 'obscured', 'absent', 'uncertain']),
+  "confidence": zod.number().min(getContinuityCheckResponseObservationsItemConfidenceMin).max(getContinuityCheckResponseObservationsItemConfidenceMax),
+  "region": zod.union([zod.object({
+  "x": zod.number().min(getContinuityCheckResponseObservationsItemRegionOneXMin).max(getContinuityCheckResponseObservationsItemRegionOneXMax),
+  "y": zod.number().min(getContinuityCheckResponseObservationsItemRegionOneYMin).max(getContinuityCheckResponseObservationsItemRegionOneYMax),
+  "width": zod.number().min(getContinuityCheckResponseObservationsItemRegionOneWidthMin).max(getContinuityCheckResponseObservationsItemRegionOneWidthMax),
+  "height": zod.number().min(getContinuityCheckResponseObservationsItemRegionOneHeightMin).max(getContinuityCheckResponseObservationsItemRegionOneHeightMax)
+}),zod.null()])
+})),
+  "model": zod.string(),
+  "checkedAt": zod.coerce.date(),
+  "schemaVersion": zod.string(),
+  "startedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "latencyMs": zod.number().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "comparison": zod.array(zod.object({
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "approvedState": zod.string(),
+  "currentState": zod.string().nullable(),
+  "visibility": zod.enum(['visible', 'not_visible', 'obscured', 'absent', 'uncertain']),
+  "mismatch": zod.boolean(),
+  "confidence": zod.number().nullable(),
+  "severity": zod.union([zod.literal('low'),zod.literal('medium'),zod.literal('high'),zod.literal(null)]).nullable()
+}))
+})
+
+
+/**
+ * @summary Run the Continuity Supervisor for a take
+ */
+export const RunContinuityCheckParams = zod.object({
+  "takeId": zod.coerce.string()
+})
+
+export const RunContinuityCheckBody = zod.object({
+  "retry": zod.boolean().optional()
+})
+
+export const runContinuityCheckResponseIssuesItemConfidenceMin = 0;
+export const runContinuityCheckResponseIssuesItemConfidenceMax = 1;
+
+export const runContinuityCheckResponseObservationsItemConfidenceMin = 0;
+export const runContinuityCheckResponseObservationsItemConfidenceMax = 1;
+
+export const runContinuityCheckResponseObservationsItemRegionOneXMin = 0;
+export const runContinuityCheckResponseObservationsItemRegionOneXMax = 1;
+
+export const runContinuityCheckResponseObservationsItemRegionOneYMin = 0;
+export const runContinuityCheckResponseObservationsItemRegionOneYMax = 1;
+
+export const runContinuityCheckResponseObservationsItemRegionOneWidthMin = 0;
+export const runContinuityCheckResponseObservationsItemRegionOneWidthMax = 1;
+
+export const runContinuityCheckResponseObservationsItemRegionOneHeightMin = 0;
+export const runContinuityCheckResponseObservationsItemRegionOneHeightMax = 1;
+
+
+
+export const RunContinuityCheckResponse = zod.object({
+  "checkId": zod.string(),
+  "sceneId": zod.string(),
+  "shotId": zod.string(),
+  "takeId": zod.string(),
+  "referenceTakeId": zod.string().nullable(),
+  "status": zod.enum(['pending', 'analyzing', 'completed', 'failed']),
+  "issues": zod.array(zod.object({
+  "id": zod.string(),
+  "sceneId": zod.string(),
+  "takeId": zod.string(),
+  "analysisRunId": zod.string().nullable(),
+  "issueKey": zod.string(),
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "expectedState": zod.string(),
+  "observedState": zod.string(),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "confidence": zod.number().min(runContinuityCheckResponseIssuesItemConfidenceMin).max(runContinuityCheckResponseIssuesItemConfidenceMax),
+  "explanation": zod.string(),
+  "suggestedFix": zod.string().nullable(),
+  "status": zod.enum(['open', 'fixed', 'intentional', 'ignored'])
+})),
+  "observations": zod.array(zod.object({
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "observedState": zod.string(),
+  "visibility": zod.enum(['visible', 'not_visible', 'obscured', 'absent', 'uncertain']),
+  "confidence": zod.number().min(runContinuityCheckResponseObservationsItemConfidenceMin).max(runContinuityCheckResponseObservationsItemConfidenceMax),
+  "region": zod.union([zod.object({
+  "x": zod.number().min(runContinuityCheckResponseObservationsItemRegionOneXMin).max(runContinuityCheckResponseObservationsItemRegionOneXMax),
+  "y": zod.number().min(runContinuityCheckResponseObservationsItemRegionOneYMin).max(runContinuityCheckResponseObservationsItemRegionOneYMax),
+  "width": zod.number().min(runContinuityCheckResponseObservationsItemRegionOneWidthMin).max(runContinuityCheckResponseObservationsItemRegionOneWidthMax),
+  "height": zod.number().min(runContinuityCheckResponseObservationsItemRegionOneHeightMin).max(runContinuityCheckResponseObservationsItemRegionOneHeightMax)
+}),zod.null()])
+})),
+  "model": zod.string(),
+  "checkedAt": zod.coerce.date(),
+  "schemaVersion": zod.string(),
+  "startedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "latencyMs": zod.number().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "comparison": zod.array(zod.object({
+  "category": zod.enum(['wardrobe', 'props', 'hair_makeup', 'blocking', 'set', 'action', 'other']),
+  "entity": zod.string(),
+  "approvedState": zod.string(),
+  "currentState": zod.string().nullable(),
+  "visibility": zod.enum(['visible', 'not_visible', 'obscured', 'absent', 'uncertain']),
+  "mismatch": zod.boolean(),
+  "confidence": zod.number().nullable(),
+  "severity": zod.union([zod.literal('low'),zod.literal('medium'),zod.literal('high'),zod.literal(null)]).nullable()
+}))
+})
+
+

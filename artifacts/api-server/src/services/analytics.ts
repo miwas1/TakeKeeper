@@ -32,16 +32,36 @@ export const analyticsEvents = [
 
 export type AnalyticsEventName = (typeof analyticsEvents)[number];
 
+export async function recordAgentEvent(input: {
+  projectId?: string | null;
+  agent: string;
+  action: string;
+  toolName?: string | null;
+  status: "started" | "completed" | "failed";
+  latencyMs?: number | null;
+  metadata?: Record<string, unknown> | null;
+}): Promise<void> {
+  await db.insert(agentEventsTable).values({
+    projectId: input.projectId ?? null,
+    agent: input.agent,
+    action: input.action,
+    toolName: input.toolName ?? null,
+    status: input.status,
+    latencyMs: input.latencyMs ?? null,
+    metadataJson: input.metadata ?? null,
+  });
+}
+
 export async function trackEvent(input: {
   projectId?: string;
   name: AnalyticsEventName;
   metadata?: Record<string, unknown>;
 }): Promise<void> {
-  await db.insert(agentEventsTable).values({
+  await recordAgentEvent({
     projectId: input.projectId,
     agent: "application",
     action: input.name,
     status: "completed",
-    metadataJson: input.metadata,
+    metadata: input.metadata,
   });
 }

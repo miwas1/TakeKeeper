@@ -23,6 +23,8 @@ import type {
   ActivityEvent,
   BadRequestResponse,
   ContinuityChangeInput,
+  ContinuityCheck,
+  ContinuityCheckInput,
   ContinuityItem,
   ContinuityItemInput,
   ContinuityItemUpdate,
@@ -54,7 +56,9 @@ import type {
   TakeInput,
   TakeUpdate,
   UploadRequest,
-  UploadTarget
+  UploadTarget,
+  VisualStateAnalysis,
+  VisualStateAnalysisInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -2672,5 +2676,303 @@ export const useRetryScreenplayImport = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getRetryScreenplayImportMutationOptions(options));
+    }
+
+export const getGetTakeVisualStateUrl = (takeId: string,) => {
+
+
+
+
+  return `/api/takes/${takeId}/visual-state`
+}
+
+/**
+ * @summary Get the latest Visual State analysis for a take
+ */
+export const getTakeVisualState = async (takeId: string, options?: Parameters<typeof customFetch>[1]): Promise<VisualStateAnalysis> => {
+
+  return customFetch<VisualStateAnalysis>(getGetTakeVisualStateUrl(takeId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTakeVisualStateQueryKey = (takeId: string,) => {
+    return [
+    `/api/takes/${takeId}/visual-state`
+    ] as const;
+    }
+
+
+export const getGetTakeVisualStateQueryOptions = <TData = Awaited<ReturnType<typeof getTakeVisualState>>, TError = ErrorType<NotFoundResponse>>(takeId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTakeVisualState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTakeVisualStateQueryKey(takeId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTakeVisualState>>> = ({ signal }) => getTakeVisualState(takeId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: takeId !== null && takeId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTakeVisualState>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTakeVisualStateQueryResult = NonNullable<Awaited<ReturnType<typeof getTakeVisualState>>>
+export type GetTakeVisualStateQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Get the latest Visual State analysis for a take
+ */
+
+export function useGetTakeVisualState<TData = Awaited<ReturnType<typeof getTakeVisualState>>, TError = ErrorType<NotFoundResponse>>(
+ takeId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTakeVisualState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTakeVisualStateQueryOptions(takeId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAnalyzeTakeVisualStateUrl = (takeId: string,) => {
+
+
+
+
+  return `/api/takes/${takeId}/visual-state`
+}
+
+/**
+ * @summary Analyze a take image with the Visual State Agent
+ */
+export const analyzeTakeVisualState = async (takeId: string,
+    visualStateAnalysisInput?: VisualStateAnalysisInput, options?: Parameters<typeof customFetch>[1]): Promise<VisualStateAnalysis> => {
+
+  return customFetch<VisualStateAnalysis>(getAnalyzeTakeVisualStateUrl(takeId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(visualStateAnalysisInput)
+  }
+);}
+
+
+
+
+
+export const getAnalyzeTakeVisualStateMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeTakeVisualState>>, TError,{takeId: string;data?: BodyType<VisualStateAnalysisInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeTakeVisualState>>, TError,{takeId: string;data?: BodyType<VisualStateAnalysisInput>}, TContext> => {
+
+const mutationKey = ['analyzeTakeVisualState'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeTakeVisualState>>, {takeId: string;data?: BodyType<VisualStateAnalysisInput>}> = (props) => {
+          const {takeId,data} = props ?? {};
+
+          return  analyzeTakeVisualState(takeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnalyzeTakeVisualStateMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeTakeVisualState>>>
+    export type AnalyzeTakeVisualStateMutationBody = BodyType<VisualStateAnalysisInput> | undefined
+    export type AnalyzeTakeVisualStateMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Analyze a take image with the Visual State Agent
+ */
+export const useAnalyzeTakeVisualState = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeTakeVisualState>>, TError,{takeId: string;data?: BodyType<VisualStateAnalysisInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeTakeVisualState>>,
+        TError,
+        {takeId: string;data?: BodyType<VisualStateAnalysisInput>},
+        TContext
+      > => {
+      return useMutation(getAnalyzeTakeVisualStateMutationOptions(options));
+    }
+
+export const getGetContinuityCheckUrl = (takeId: string,) => {
+
+
+
+
+  return `/api/takes/${takeId}/continuity-check`
+}
+
+/**
+ * @summary Get the latest continuity comparison for a take
+ */
+export const getContinuityCheck = async (takeId: string, options?: Parameters<typeof customFetch>[1]): Promise<ContinuityCheck> => {
+
+  return customFetch<ContinuityCheck>(getGetContinuityCheckUrl(takeId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetContinuityCheckQueryKey = (takeId: string,) => {
+    return [
+    `/api/takes/${takeId}/continuity-check`
+    ] as const;
+    }
+
+
+export const getGetContinuityCheckQueryOptions = <TData = Awaited<ReturnType<typeof getContinuityCheck>>, TError = ErrorType<NotFoundResponse>>(takeId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getContinuityCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetContinuityCheckQueryKey(takeId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getContinuityCheck>>> = ({ signal }) => getContinuityCheck(takeId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: takeId !== null && takeId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getContinuityCheck>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetContinuityCheckQueryResult = NonNullable<Awaited<ReturnType<typeof getContinuityCheck>>>
+export type GetContinuityCheckQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Get the latest continuity comparison for a take
+ */
+
+export function useGetContinuityCheck<TData = Awaited<ReturnType<typeof getContinuityCheck>>, TError = ErrorType<NotFoundResponse>>(
+ takeId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getContinuityCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetContinuityCheckQueryOptions(takeId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRunContinuityCheckUrl = (takeId: string,) => {
+
+
+
+
+  return `/api/takes/${takeId}/continuity-check`
+}
+
+/**
+ * @summary Run the Continuity Supervisor for a take
+ */
+export const runContinuityCheck = async (takeId: string,
+    continuityCheckInput?: ContinuityCheckInput, options?: Parameters<typeof customFetch>[1]): Promise<ContinuityCheck> => {
+
+  return customFetch<ContinuityCheck>(getRunContinuityCheckUrl(takeId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(continuityCheckInput)
+  }
+);}
+
+
+
+
+
+export const getRunContinuityCheckMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runContinuityCheck>>, TError,{takeId: string;data?: BodyType<ContinuityCheckInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runContinuityCheck>>, TError,{takeId: string;data?: BodyType<ContinuityCheckInput>}, TContext> => {
+
+const mutationKey = ['runContinuityCheck'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runContinuityCheck>>, {takeId: string;data?: BodyType<ContinuityCheckInput>}> = (props) => {
+          const {takeId,data} = props ?? {};
+
+          return  runContinuityCheck(takeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunContinuityCheckMutationResult = NonNullable<Awaited<ReturnType<typeof runContinuityCheck>>>
+    export type RunContinuityCheckMutationBody = BodyType<ContinuityCheckInput> | undefined
+    export type RunContinuityCheckMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Run the Continuity Supervisor for a take
+ */
+export const useRunContinuityCheck = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runContinuityCheck>>, TError,{takeId: string;data?: BodyType<ContinuityCheckInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runContinuityCheck>>,
+        TError,
+        {takeId: string;data?: BodyType<ContinuityCheckInput>},
+        TContext
+      > => {
+      return useMutation(getRunContinuityCheckMutationOptions(options));
     }
 

@@ -195,6 +195,241 @@ export interface ContinuityChangeInput {
   sourceTakeId: string;
 }
 
+export interface VisualStateAnalysisInput {
+  force?: boolean;
+}
+
+export type VisualObservationCategory = typeof VisualObservationCategory[keyof typeof VisualObservationCategory];
+
+
+export const VisualObservationCategory = {
+  wardrobe: 'wardrobe',
+  props: 'props',
+  hair_makeup: 'hair_makeup',
+  blocking: 'blocking',
+  set: 'set',
+  action: 'action',
+  other: 'other',
+} as const;
+
+export type VisualObservationVisibility = typeof VisualObservationVisibility[keyof typeof VisualObservationVisibility];
+
+
+export const VisualObservationVisibility = {
+  visible: 'visible',
+  not_visible: 'not_visible',
+  obscured: 'obscured',
+  absent: 'absent',
+  uncertain: 'uncertain',
+} as const;
+
+export type VisualObservationRegion = {
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  x: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  y: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  width: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  height: number;
+} | null;
+
+export interface VisualObservation {
+  category: VisualObservationCategory;
+  entity: string;
+  observedState: string;
+  visibility: VisualObservationVisibility;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  confidence: number;
+  region: VisualObservationRegion;
+}
+
+export type VisualStateAnalysisStatus = typeof VisualStateAnalysisStatus[keyof typeof VisualStateAnalysisStatus];
+
+
+export const VisualStateAnalysisStatus = {
+  pending: 'pending',
+  analyzing: 'analyzing',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
+export interface VisualStateAnalysis {
+  analysisRunId: string;
+  takeId: string;
+  status: VisualStateAnalysisStatus;
+  /** @nullable */
+  model: string | null;
+  schemaVersion: string;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  latencyMs: number | null;
+  /** @nullable */
+  errorMessage: string | null;
+  observations: VisualObservation[];
+}
+
+export interface ContinuityCheckInput {
+  retry?: boolean;
+}
+
+export type ContinuityIssueCategory = typeof ContinuityIssueCategory[keyof typeof ContinuityIssueCategory];
+
+
+export const ContinuityIssueCategory = {
+  wardrobe: 'wardrobe',
+  props: 'props',
+  hair_makeup: 'hair_makeup',
+  blocking: 'blocking',
+  set: 'set',
+  action: 'action',
+  other: 'other',
+} as const;
+
+export type ContinuityIssueSeverity = typeof ContinuityIssueSeverity[keyof typeof ContinuityIssueSeverity];
+
+
+export const ContinuityIssueSeverity = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+} as const;
+
+export type ContinuityIssueStatus = typeof ContinuityIssueStatus[keyof typeof ContinuityIssueStatus];
+
+
+export const ContinuityIssueStatus = {
+  open: 'open',
+  fixed: 'fixed',
+  intentional: 'intentional',
+  ignored: 'ignored',
+} as const;
+
+export interface ContinuityIssue {
+  id: string;
+  sceneId: string;
+  takeId: string;
+  /** @nullable */
+  analysisRunId: string | null;
+  issueKey: string;
+  category: ContinuityIssueCategory;
+  entity: string;
+  expectedState: string;
+  observedState: string;
+  severity: ContinuityIssueSeverity;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  confidence: number;
+  explanation: string;
+  /** @nullable */
+  suggestedFix: string | null;
+  status: ContinuityIssueStatus;
+}
+
+export type ContinuityComparisonCategory = typeof ContinuityComparisonCategory[keyof typeof ContinuityComparisonCategory];
+
+
+export const ContinuityComparisonCategory = {
+  wardrobe: 'wardrobe',
+  props: 'props',
+  hair_makeup: 'hair_makeup',
+  blocking: 'blocking',
+  set: 'set',
+  action: 'action',
+  other: 'other',
+} as const;
+
+export type ContinuityComparisonVisibility = typeof ContinuityComparisonVisibility[keyof typeof ContinuityComparisonVisibility];
+
+
+export const ContinuityComparisonVisibility = {
+  visible: 'visible',
+  not_visible: 'not_visible',
+  obscured: 'obscured',
+  absent: 'absent',
+  uncertain: 'uncertain',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ContinuityComparisonSeverity = typeof ContinuityComparisonSeverity[keyof typeof ContinuityComparisonSeverity] | null;
+
+
+export const ContinuityComparisonSeverity = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+} as const;
+
+export interface ContinuityComparison {
+  category: ContinuityComparisonCategory;
+  entity: string;
+  approvedState: string;
+  /** @nullable */
+  currentState: string | null;
+  visibility: ContinuityComparisonVisibility;
+  mismatch: boolean;
+  /** @nullable */
+  confidence: number | null;
+  /** @nullable */
+  severity: ContinuityComparisonSeverity;
+}
+
+export type ContinuityCheckStatus = typeof ContinuityCheckStatus[keyof typeof ContinuityCheckStatus];
+
+
+export const ContinuityCheckStatus = {
+  pending: 'pending',
+  analyzing: 'analyzing',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
+export interface ContinuityCheck {
+  checkId: string;
+  sceneId: string;
+  shotId: string;
+  takeId: string;
+  /** @nullable */
+  referenceTakeId: string | null;
+  status: ContinuityCheckStatus;
+  issues: ContinuityIssue[];
+  observations: VisualObservation[];
+  model: string;
+  checkedAt: string;
+  schemaVersion: string;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  latencyMs: number | null;
+  /** @nullable */
+  errorMessage: string | null;
+  comparison: ContinuityComparison[];
+}
+
 export interface Media {
   id: string;
   projectId: string;

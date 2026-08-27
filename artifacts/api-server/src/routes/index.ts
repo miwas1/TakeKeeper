@@ -5,6 +5,7 @@ import projectsRouter from "./projects";
 import productionRouter from "./production";
 import storageRouter from "./storage";
 import screenplayRouter from "./screenplay";
+import continuityRouter from "./continuity";
 import { requireIdentity } from "../middlewares/identity";
 
 const router: IRouter = Router();
@@ -16,5 +17,6 @@ router.use(projectsRouter);
 router.use(productionRouter);
 router.use(storageRouter);
 router.use(screenplayRouter);
+router.use(continuityRouter);
 
 export default router;

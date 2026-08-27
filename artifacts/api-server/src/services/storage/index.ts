@@ -28,6 +28,7 @@ export interface MediaStorageService {
   createReadUrl(storageKey: string): Promise<string>;
   delete(storageKey: string): Promise<void>;
   readMetadata(storageKey: string): Promise<StoredMediaMetadata>;
+  readBytes(storageKey: string): Promise<{ contentType: string; bytes: Uint8Array }>;
   writeUpload?(body: AsyncIterable<Uint8Array>, storageKey: string, maxSize: number): Promise<void>;
   resolveReadToken?(token: string): string | undefined;
   getFilePath?(storageKey: string): string;
@@ -187,6 +188,19 @@ class ReplitMediaStorageService implements MediaStorageService {
     }
     return { contentType: detected.contentType, size, width: detected.width, height: detected.height };
   }
+
+  async readBytes(storageKey: string) {
+    const metadata = await this.readMetadata(storageKey);
+    const readUrl = await signObjectUrl(storageKey, "GET", 300);
+    const response = await fetch(readUrl, { signal: AbortSignal.timeout(30_000) });
+    if (!response.ok) throw new Error(`Uploaded object could not be read (${response.status})`);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength !== metadata.size) throw new Error("Uploaded object changed while it was being read");
+    return {
+      contentType: metadata.contentType,
+      bytes,
+    };
+  }
 }
 
 class LocalFilesystemMediaStorageService implements MediaStorageService {
@@ -260,6 +274,14 @@ class LocalFilesystemMediaStorageService implements MediaStorageService {
       throw new Error("Local media object is not a supported image");
     }
     return { contentType: detected.contentType, size: fileStats.size, width: detected.width, height: detected.height };
+  }
+
+  async readBytes(storageKey: string) {
+    const filePath = this.getFilePath(storageKey);
+    return {
+      contentType: (await this.readMetadata(storageKey)).contentType,
+      bytes: new Uint8Array(await readFile(filePath)),
+    };
   }
 }
 

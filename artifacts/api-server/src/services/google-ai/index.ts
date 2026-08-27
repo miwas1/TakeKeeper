@@ -1,13 +1,16 @@
 import type { z } from "zod";
 import { GoogleGenAI, Type } from "@google/genai";
 import {
-  continuityCheckResultSchema,
+  continuitySupervisorOutputSchema,
   dailyReportSchema,
   screenplayBreakdownSchema,
   sceneBreakdownSchema,
   visualStateResultSchema,
+  type ContinuityIssueDraft,
+  type VisualObservation,
 } from "@workspace/takekeeper-domain";
 import { env } from "../../config/env";
+import type { ApprovedContinuityState } from "../continuity/approved-state";
 
 export type AgentDefinition<TOutput> = {
   name: string;
@@ -29,7 +32,7 @@ export const takeKeeperAgents = {
   continuitySupervisor: {
     name: "continuity-supervisor-agent",
     purpose: "Compare validated visual state against approved continuity state.",
-    outputSchema: continuityCheckResultSchema,
+    outputSchema: continuitySupervisorOutputSchema,
   },
   report: {
     name: "report-agent",
@@ -40,6 +43,8 @@ export const takeKeeperAgents = {
 
 export const googleAiConfig = {
   provider: "google",
+  runtime: "google-adk",
+  deploymentTarget: "agent-engine",
   model: env.GEMINI_MODEL,
   cloudProject: env.GOOGLE_CLOUD_PROJECT,
   location: env.GOOGLE_CLOUD_LOCATION,
@@ -94,6 +99,8 @@ For each continuity item include a concise evidence quote or close excerpt and c
 Return JSON matching the supplied schema exactly.`;
 
 const ai = env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: env.GEMINI_API_KEY }) : null;
+
+export const googleAiAvailable = Boolean(ai);
 
 type ScriptSegment = {
   index: number;
@@ -196,4 +203,204 @@ export async function analyzeScreenplay(content: string) {
       sceneNumber: hasDuplicates ? String(index + 1) : scene.sceneNumber,
     })),
   });
+}
+
+const visualObservationJsonSchema = {
+  type: Type.OBJECT,
+  properties: {
+    category: { type: Type.STRING, enum: ["wardrobe", "props", "hair_makeup", "blocking", "set", "action", "other"] },
+    entity: { type: Type.STRING },
+    observedState: { type: Type.STRING },
+    visibility: { type: Type.STRING, enum: ["visible", "not_visible", "obscured", "absent", "uncertain"] },
+    confidence: { type: Type.NUMBER, description: "0 to 1 confidence in the visible observation." },
+    region: {
+      type: Type.OBJECT,
+      nullable: true,
+      properties: {
+        x: { type: Type.NUMBER },
+        y: { type: Type.NUMBER },
+        width: { type: Type.NUMBER },
+        height: { type: Type.NUMBER },
+      },
+      required: ["x", "y", "width", "height"],
+    },
+  },
+  required: ["category", "entity", "observedState", "visibility", "confidence", "region"],
+} as const;
+
+const visualStateResponseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    observations: { type: Type.ARRAY, items: visualObservationJsonSchema, maxItems: 40 },
+    warnings: { type: Type.ARRAY, items: { type: Type.STRING }, maxItems: 10 },
+  },
+  required: ["observations", "warnings"],
+} as const;
+
+const visualStatePrompt = `You are TakeKeeper's Visual State Agent. Answer only: what is visible in this image?
+Describe production-observable state for wardrobe, props, hair_makeup, blocking, set, action, or other. Do not compare against another image, screenplay, or continuity expectation. Do not infer anything outside the frame.
+Inspect the known continuity entities first, but report only what the image supports. You may include another clearly visible production-relevant entity when it is useful, but do not invent one. Use a stable entity name when a person or prop is identifiable. State visibility explicitly: visible, not_visible, obscured, absent, or uncertain. A not_visible, obscured, absent, or uncertain entity is not evidence that it changed. Use a normalized relative position such as actor_right or actor_left when appropriate. Use null for region when a useful bounding region cannot be identified. Confidence must reflect only the certainty of this visual observation. Return JSON matching the supplied schema exactly and never include hidden reasoning.`;
+
+function parseGeminiJson(text: string | undefined, emptyMessage: string): unknown {
+  const trimmed = text?.trim();
+  if (!trimmed) throw new Error(emptyMessage);
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    throw new Error("Gemini returned invalid JSON");
+  }
+}
+
+export type VisualStateInput = {
+  takeId: string;
+  mediaType: string;
+  bytes: Uint8Array;
+  project: { id: string; title: string; type: string };
+  scene: { id: string; sceneNumber: string; slugline: string; location: string; timeOfDay: string; storyDay: string };
+  shot: { id: string; label: string; description: string | null; notes: string | null };
+  take: { id: string; takeNumber: number; isReference: boolean };
+  knownEntities: Array<{
+    category: string;
+    entity: string;
+    expectedState: string;
+    sourceType: string;
+    confidence: number | null;
+  }>;
+};
+
+export async function analyzeVisualState(input: VisualStateInput): Promise<{ takeId: string; observations: VisualObservation[]; warnings: string[]; model: string }> {
+  if (!ai) throw new Error("Gemini API key is not configured");
+  const structuredContext = {
+    project: input.project,
+    scene: input.scene,
+    shot: input.shot,
+    take: input.take,
+    knownContinuityEntities: input.knownEntities,
+  };
+  const response = await ai.models.generateContent({
+    model: env.GEMINI_MODEL,
+    contents: [{
+      role: "user",
+      parts: [
+        { text: `${visualStatePrompt}\n\nSTRUCTURED TAKE CONTEXT:\n${JSON.stringify(structuredContext)}` },
+        { inlineData: { mimeType: input.mediaType, data: Buffer.from(input.bytes).toString("base64") } },
+      ],
+    }],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: visualStateResponseSchema,
+      maxOutputTokens: 8192,
+      temperature: 0.1,
+    },
+  });
+  const parsed = parseGeminiJson(response.text, "Gemini returned an empty visual state");
+  const result = visualStateResultSchema.parse({
+    takeId: input.takeId,
+    observations: typeof parsed === "object" && parsed !== null && "observations" in parsed ? parsed.observations : [],
+    warnings: typeof parsed === "object" && parsed !== null && "warnings" in parsed ? parsed.warnings : [],
+    model: env.GEMINI_MODEL,
+  });
+  return result;
+}
+
+export type ContinuitySupervisorInput = {
+  project: {
+    id: string;
+    title: string;
+    type: string;
+  };
+  scene: {
+    id: string;
+    sceneNumber: string;
+    slugline: string;
+    location: string;
+    timeOfDay: string;
+    storyDay: string;
+  };
+  shot: {
+    id: string;
+    label: string;
+    description: string | null;
+    notes: string | null;
+  };
+  take: {
+    id: string;
+    takeNumber: number;
+  };
+  approvedState: ApprovedContinuityState;
+  currentObservations: VisualObservation[];
+};
+
+const continuityIssueJsonSchema = {
+  type: Type.OBJECT,
+  properties: {
+    category: { type: Type.STRING, enum: ["wardrobe", "props", "hair_makeup", "blocking", "set", "action", "other"] },
+    entity: { type: Type.STRING },
+    expectedState: { type: Type.STRING },
+    observedState: { type: Type.STRING },
+    severity: { type: Type.STRING, enum: ["low", "medium", "high"] },
+    confidence: { type: Type.NUMBER, description: "0 to 1 confidence that this is a meaningful continuity mismatch." },
+    explanation: { type: Type.STRING },
+    suggestedFix: { type: Type.STRING, nullable: true },
+  },
+  required: ["category", "entity", "expectedState", "observedState", "severity", "confidence", "explanation", "suggestedFix"],
+} as const;
+
+const continuitySupervisorResponseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    issues: { type: Type.ARRAY, items: continuityIssueJsonSchema, maxItems: 40 },
+  },
+  required: ["issues"],
+} as const;
+
+const continuitySupervisorPrompt = `You are TakeKeeper's Continuity Supervisor Agent. Decide whether the current take conflicts with the approved continuity state.
+The input is structured data produced by application services. The approved state is authoritative: do not rewrite it, silently apply a new state, or treat model preference as an override.
+Compare only an approved item with a matching current observation. Do not create an issue when the current entity is not_visible, obscured, absent, or uncertain. Do not create an issue for missing visibility. Treat normalized equivalents such as unzipped/open, zipped/closed, face-down/face down, actor_right/right_of_actor/Maya's right, and next_to/beside as equal where the category and entity make that reliable.
+Return one issue per logical mismatch, never multiple phrasings of the same mismatch. Do not report extra observed entities unless an approved state explicitly requires their absence. Confidence must reflect both the underlying observation confidence and the confidence that the difference matters. Use low, medium, or high severity; reserve high for clear, prominent, or explicitly required contradictions. Return JSON matching the supplied schema exactly. Never include hidden reasoning.`;
+
+export async function runContinuitySupervisor(input: ContinuitySupervisorInput): Promise<{ issues: ContinuityIssueDraft[]; model: string }> {
+  if (!ai) throw new Error("Gemini API key is not configured");
+  const structuredContext = {
+    project: input.project,
+    scene: input.scene,
+    shot: input.shot,
+    currentTake: input.take,
+    approvedContinuityState: input.approvedState.items.map(({ id, category, entity, expectedState, sourceType, confidence, appliedChangeId }) => ({
+      id,
+      category,
+      entity,
+      expectedState,
+      sourceType,
+      confidence,
+      appliedChangeId: appliedChangeId ?? null,
+    })),
+    approvedReferenceObservations: input.approvedState.referenceObservations,
+    currentTakeObservations: input.currentObservations,
+    scriptRequirements: input.approvedState.scriptRequirements,
+    previousApprovedChanges: input.approvedState.previousApprovedChanges.map(({ id, continuityItemId, previousState, newState, effectiveScope, effectiveFromTakeId, sourceTakeId }) => ({
+      id,
+      continuityItemId,
+      previousState,
+      newState,
+      effectiveScope,
+      effectiveFromTakeId,
+      sourceTakeId,
+    })),
+  };
+  const response = await ai.models.generateContent({
+    model: env.GEMINI_MODEL,
+    contents: [{ role: "user", parts: [{ text: `${continuitySupervisorPrompt}\n\nSTRUCTURED COMPARISON CONTEXT:\n${JSON.stringify(structuredContext)}` }] }],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: continuitySupervisorResponseSchema,
+      maxOutputTokens: 8192,
+      temperature: 0.1,
+    },
+  });
+  const parsed = parseGeminiJson(response.text, "Gemini returned an empty continuity decision");
+  const validated = continuitySupervisorOutputSchema.parse({
+    issues: typeof parsed === "object" && parsed !== null && "issues" in parsed ? parsed.issues : [],
+  });
+  return { issues: validated.issues, model: env.GEMINI_MODEL };
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { continuityIssueDraftSchema, visualObservationSchema } from "@workspace/takekeeper-domain";
 
 export type ApplicationTool<TInput, TOutput> = {
   name: string;
@@ -11,9 +12,20 @@ export const plannedToolInputs = {
   get_scene: z.object({ sceneId: z.string().min(1) }),
   get_continuity_bible: z.object({ sceneId: z.string().min(1) }),
   get_reference_take: z.object({ shotId: z.string().min(1) }),
+  get_take_observations: z.object({ takeId: z.string().min(1) }),
+  get_effective_continuity_state: z.object({ sceneId: z.string().min(1), shotId: z.string().min(1), takeId: z.string().min(1) }),
   get_previous_approved_changes: z.object({ sceneId: z.string().min(1), takeId: z.string().min(1) }),
-  save_observations: z.object({ takeId: z.string().min(1), observations: z.array(z.unknown()) }),
-  create_issue: z.object({ takeId: z.string().min(1), issue: z.unknown() }),
+  save_observations: z.object({ takeId: z.string().min(1), analysisRunId: z.string().min(1), observations: z.array(visualObservationSchema) }),
+  create_issue: z.object({ takeId: z.string().min(1), issue: continuityIssueDraftSchema }),
+  record_agent_event: z.object({
+    projectId: z.string().min(1),
+    agent: z.string().min(1),
+    action: z.string().min(1),
+    toolName: z.string().min(1).nullable().optional(),
+    status: z.enum(["started", "completed", "failed"]),
+    latencyMs: z.number().int().nonnegative().nullable().optional(),
+    metadata: z.record(z.unknown()).nullable().optional(),
+  }),
   resolve_issue: z.object({ issueId: z.string().min(1), resolution: z.string().min(1) }),
   approve_state_change: z.object({ issueId: z.string().min(1), decision: z.unknown() }),
   update_continuity_state: z.object({ continuityItemId: z.string().min(1), state: z.string().min(1) }),
