@@ -1,2 +1,3 @@
 - [OpenAPI generator compatibility](openapi-generator-compatibility.md) — avoid Zod 4-only generated helpers while this workspace remains on Zod 3.
 - [Gemini screenplay schemas](gemini-screenplay-schemas.md) — keep full script text outside Gemini output; batch scenes and repair only deterministic omissions.
+- [PNPM deployment installs](pnpm-deployment-installs.md) — keep the pnpm packageManager pin aligned with Replit’s provided pnpm to avoid recursive installer bootstrapping.
