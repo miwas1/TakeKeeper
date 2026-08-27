@@ -339,6 +339,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Take"
+    delete:
+      operationId: deleteTake
+      tags: [takes]
+      summary: Delete a take and its media
+      parameters:
+        - $ref: "#/components/parameters/TakeId"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
   /scenes/{sceneId}/continuity:
     get:
       operationId: listContinuityItems
@@ -459,6 +470,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Media"
+  /media/{mediaId}:
+    delete:
+      operationId: deleteMedia
+      tags: [media]
+      summary: Delete an unattached media object
+      parameters:
+        - name: mediaId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
   /reports/daily:
     get:
       operationId: getDailyReport
@@ -707,22 +733,25 @@ components:
         sceneId: { type: string }
         label: { type: string }
         description: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
         status: { type: string }
         takeCount: { type: number }
         issueCount: { type: number }
         referenceTakeId: { type: [string, "null"] }
-      required: [id, sceneId, label, description, status, takeCount, issueCount, referenceTakeId]
+      required: [id, sceneId, label, description, notes, status, takeCount, issueCount, referenceTakeId]
     ShotInput:
       type: object
       properties:
         label: { type: string, minLength: 1 }
         description: { type: string }
+        notes: { type: string }
       required: [label]
     ShotUpdate:
       type: object
       properties:
         label: { type: string, minLength: 1 }
         description: { type: string }
+        notes: { type: string }
         status: { type: string }
     Take:
       type: object
@@ -735,15 +764,17 @@ components:
         capturedAt: { type: string, format: date-time }
         isReference: { type: boolean }
         isCircle: { type: boolean }
+        referenceStatus: { type: string, enum: [none, active, superseded] }
         issueCount: { type: number }
         mediaUrl: { type: [string, "null"] }
-      required: [id, shotId, takeNumber, status, notes, capturedAt, isReference, isCircle, issueCount, mediaUrl]
+      required: [id, shotId, takeNumber, status, notes, capturedAt, isReference, isCircle, referenceStatus, issueCount, mediaUrl]
     TakeInput:
       type: object
       properties:
         notes: { type: string }
         isReference: { type: boolean }
         mediaId: { type: string }
+        submissionKey: { type: string, minLength: 1, maxLength: 120 }
       required: []
     TakeUpdate:
       type: object
@@ -809,8 +840,8 @@ components:
         projectId: { type: string }
         sceneId: { type: string }
         fileName: { type: string, minLength: 1 }
-        contentType: { type: string, minLength: 1 }
-        size: { type: number }
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        size: { type: number, maximum: 20971520 }
       required: [projectId, fileName, contentType, size]
     UploadTarget:
       type: object

@@ -1,0 +1,786 @@
+Continue building **TakeKeeper** from the completed previous phases.
+
+At this point the complete continuity intelligence loop should work.
+
+This phase turns the working system into a clear, polished production experience that is highly effective in the hackathon demo.
+
+Do not rebuild the AI architecture.
+
+Focus on:
+
+* presentation;
+* production history;
+* auditability;
+* reporting;
+* judge-friendly technical proof.
+
+Before coding:
+
+1. verify the core acceptance flow still works;
+2. inspect Results;
+3. inspect Activity;
+4. inspect Agent Activity;
+5. inspect Circle Takes;
+6. inspect continuity history;
+7. inspect existing Reports shell;
+8. provide a concise implementation plan;
+9. then implement this phase.
+
+# Phase 8 Goal
+
+Create polished interfaces for:
+
+1. continuity-check results;
+2. production activity;
+3. continuity state history;
+4. Agent Activity;
+5. shoot-day reporting.
+
+The system should clearly communicate both:
+
+**what happened on set**
+
+and
+
+**what the agent actually did.**
+
+# 1. Results Screen
+
+Make the Results screen one of the strongest screens in the product.
+
+Dynamic title:
+
+**1 thing changed**
+
+or:
+
+**3 things changed**
+
+Subtitle:
+
+`Take 04 compared with approved continuity`
+
+Use actual issue counts.
+
+# 2. Desktop Results Layout
+
+Desktop should make strong use of available space.
+
+Preferred layout:
+
+```text
+┌──────────────────┬──────────────────┬────────────────────┐
+│ REFERENCE        │ CURRENT TAKE     │ ISSUES             │
+│                  │                  │                    │
+│ image            │ image            │ Jacket changed     │
+│                  │                  │ Mug moved          │
+│                  │                  │ Phone changed      │
+└──────────────────┴──────────────────┴────────────────────┘
+```
+
+Do not simply stretch a mobile layout.
+
+# 3. Compact/Mobile Results
+
+Use:
+
+```text
+Reference
+↓
+Current Take
+↓
+Issues
+```
+
+Keep primary decisions easy to reach.
+
+# 4. Image Comparison
+
+Clearly label:
+
+**REFERENCE**
+
+and:
+
+**CURRENT TAKE**
+
+Support:
+
+* responsive images;
+* enlargement;
+* zoom where practical;
+* easy switching/comparison.
+
+Optional issue markers may be displayed when reliable region information exists.
+
+Do not make bounding boxes necessary for the feature.
+
+# 5. Current Approved State
+
+Because intentional changes may mean the original reference is no longer fully authoritative, clearly communicate current approved continuity where relevant.
+
+Avoid misleading the user into thinking every difference from the original image is an error.
+
+# 6. Issue Cards
+
+Polish issue cards.
+
+Example:
+
+# Jacket changed
+
+**Wardrobe · High confidence**
+
+**Expected**
+
+Unzipped
+
+**Current**
+
+Zipped
+
+**Suggested correction**
+
+Unzip Maya's jacket before rolling.
+
+Actions:
+
+* Fix & Recheck
+* Intentional
+* Ignore
+* Add Note
+
+Make hierarchy immediately understandable.
+
+# 7. Confidence Presentation
+
+Keep confidence human-readable.
+
+Prefer:
+
+* High confidence
+* Likely mismatch
+* Worth checking
+
+Do not prominently expose raw percentages everywhere.
+
+Raw confidence may remain available in developer mode.
+
+# 8. Severity
+
+Use:
+
+* text;
+* icon;
+* restrained color.
+
+Never communicate severity by color alone.
+
+# 9. All Clear Screen
+
+Make successful rechecks satisfying.
+
+Title:
+
+# All clear
+
+Supporting text:
+
+**Setup matches your approved continuity.**
+
+Show tasteful success feedback.
+
+Avoid excessive animation.
+
+# 10. Production Activity
+
+Turn the Activity section into a readable chronological production history.
+
+Examples:
+
+```text
+14:08
+Take 03 marked Circle
+
+14:11
+Continuity updated
+Maya's jacket changed intentionally
+
+14:16
+Take 04
+3 continuity warnings detected
+
+14:18
+Jacket change approved from now on
+
+14:20
+Take 05
+All clear
+```
+
+Every item must correspond to real persisted activity.
+
+# 11. Activity Filters
+
+If useful, allow lightweight filters such as:
+
+* All
+* Takes
+* Issues
+* Continuity Changes
+* Circle Takes
+
+Do not overbuild.
+
+# 12. Scene History
+
+Within a scene, allow users to see important continuity history.
+
+Examples:
+
+* reference created;
+* reference replaced;
+* continuity state updated;
+* issue detected;
+* issue fixed;
+* intentional change;
+* Circle Take.
+
+# 13. Continuity History
+
+Provide a detailed but compact history view.
+
+Example:
+
+# Maya's red jacket
+
+```text
+Initial
+Unzipped
+Source: Reference A
+
+Take 04
+Zipped
+Approved intentionally
+Scope: From now on
+```
+
+This helps demonstrate persistent state.
+
+# 14. Agent Activity Panel
+
+Complete the developer-only **Agent Activity** screen.
+
+This is an important hackathon technical-proof feature.
+
+Show real events such as:
+
+```text
+14:11:03
+ContinuityWorkflow
+get_scene
+✓ 82 ms
+
+14:11:03
+ContinuityWorkflow
+get_approved_continuity_state
+✓ 65 ms
+
+14:11:04
+VisualStateAgent
+analyze_media
+✓ 1.42 s
+
+14:11:06
+ContinuitySupervisor
+compare_state
+✓ 1.15 s
+
+14:11:06
+ContinuitySupervisor
+create_issue ×3
+✓ 104 ms
+```
+
+# 15. Agent Activity Information
+
+Show:
+
+* timestamp;
+* agent;
+* action;
+* tool;
+* latency;
+* success/failure;
+* safe metadata.
+
+Do NOT show:
+
+* hidden chain-of-thought;
+* private model reasoning;
+* secrets;
+* Google credentials;
+* complete sensitive prompts unnecessarily.
+
+# 16. Agent Status
+
+Developer mode should show:
+
+* current Gemini model;
+* Google Cloud project status where safe;
+* Agent Engine connectivity;
+* API health;
+* Replit database health;
+* storage health.
+
+Never expose credentials.
+
+# 17. Workflow Grouping
+
+Where practical, group Agent Activity by workflow.
+
+Example:
+
+```text
+Continuity Check — Take 04
+6 steps
+2.97 seconds
+3 issues created
+```
+
+Expanding can show the tool-level details.
+
+# 18. Failure Visibility
+
+Agent Activity should make failures understandable.
+
+Example:
+
+```text
+VisualStateAgent
+analyze_media
+FAILED
+Gemini request timed out
+```
+
+Do not expose raw sensitive stack traces in the normal UI.
+
+# 19. Reports Screen
+
+Complete the Reports area.
+
+A user should select:
+
+* project;
+* shoot day;
+
+and generate a Daily Report.
+
+# 20. Daily Report Data
+
+Include:
+
+* project;
+* shoot date;
+* scenes worked;
+* shots;
+* total takes;
+* Circle Takes;
+* continuity issues detected;
+* issues fixed;
+* intentional changes;
+* ignored warnings;
+* unresolved warnings;
+* notes.
+
+All quantitative data should come directly from persisted production records.
+
+Do not let Gemini invent counts.
+
+# 21. Report Agent
+
+Implement the **Report Agent** using Google Gemini / ADK.
+
+Goal:
+
+Turn structured production records into a concise production continuity summary.
+
+The agent should receive structured data such as:
+
+```text
+Project
+Shoot day
+Scenes
+Takes
+Circle takes
+Issues
+State changes
+Unresolved items
+Notes
+```
+
+The application calculates factual counts.
+
+The agent writes the narrative summary.
+
+# 22. Report Agent Tools
+
+Implement tools such as:
+
+* `get_shoot_day_takes`
+* `get_shoot_day_changes`
+* `get_unresolved_issues`
+* `get_circle_takes`
+* `get_scene_activity`
+* `generate_report`
+* `record_agent_event`
+
+The model must not directly query arbitrary database tables.
+
+# 23. Daily Report Layout
+
+Create a polished report.
+
+Example structure:
+
+# Daily Continuity Report
+
+**The Last Cup**
+
+**Shoot Day — [date]**
+
+## Summary
+
+## Scenes Worked
+
+## Circle Takes
+
+## Continuity Issues Caught
+
+## Intentional Changes
+
+## Unresolved Warnings
+
+## Notes
+
+Keep it useful to an actual crew.
+
+# 24. Report Accuracy
+
+Gemini may summarize.
+
+Gemini may NOT invent:
+
+* take counts;
+* issue counts;
+* Circle Takes;
+* scene IDs;
+* change history;
+* unresolved issues.
+
+Those must come from database queries.
+
+# 25. Report Persistence
+
+Save generated Daily Reports.
+
+Users should be able to:
+
+* open previous reports;
+* regenerate when production data changes;
+* see generation timestamp.
+
+# 26. Export PDF
+
+PDF export is optional.
+
+Implement only if reliable and quick.
+
+Do not let PDF export delay core report functionality.
+
+# 27. Circle Takes in Reports
+
+Clearly identify Circle Takes.
+
+Example:
+
+```text
+Scene 1 / Shot 1A
+Take 05 — Circle
+Continuity: All clear
+```
+
+# 28. Unresolved Warnings
+
+Highlight unresolved continuity concerns that could matter on the next shoot day.
+
+Example:
+
+**Scene 4 — Maya's bandage state requires confirmation.**
+
+Use real unresolved records.
+
+# 29. Intentional Change Summary
+
+Reports should clearly distinguish intentional changes from continuity mistakes.
+
+Example:
+
+**Maya's jacket was intentionally changed from unzipped to zipped beginning with Take 04.**
+
+This demonstrates TakeKeeper's persistent continuity history.
+
+# 30. Dashboard Restraint
+
+Do not turn TakeKeeper into an analytics dashboard.
+
+Use numbers only when useful.
+
+Avoid:
+
+* fake charts;
+* unnecessary graphs;
+* vanity metrics;
+* giant metric cards.
+
+Production history is more important than analytics.
+
+# 31. Hackathon Demo Readiness
+
+Optimize these screens for the judge demo.
+
+The ideal sequence should be:
+
+```text
+The Last Cup
+↓
+Reference
+↓
+Take B
+↓
+3 issues
+↓
+Jacket → Intentional → From now on
+↓
+Take C
+↓
+Jacket no longer flagged
+↓
+Circle Take
+↓
+Activity timeline
+↓
+Agent Activity
+↓
+Daily Report
+```
+
+This should be navigable quickly.
+
+# 32. Demo Mode
+
+Complete:
+
+`Settings → Developer → Demo Mode`
+
+Show:
+
+* Agent Activity;
+* current Gemini model;
+* Google Agent status;
+* API health;
+* database health;
+* storage health;
+* latest analysis latency.
+
+Do not expose secrets.
+
+# 33. Demo Reset
+
+If practical, provide a developer-only:
+
+**Reset Demo Project**
+
+This may reset The Last Cup to its seeded starting condition for repeatable demonstrations.
+
+Protect it from accidental normal-user use.
+
+Do not fake AI outputs during reset.
+
+# 34. Performance
+
+Activity pages should not become slow as records grow.
+
+Use:
+
+* pagination;
+* sensible queries;
+* indexes;
+* lazy loading where appropriate.
+
+Avoid loading entire production histories unnecessarily.
+
+# 35. Empty States
+
+Reports:
+
+**No shoot-day reports yet.**
+
+Activity:
+
+**Production activity will appear here as you shoot.**
+
+Agent Activity:
+
+**Agent actions will appear after an AI workflow runs.**
+
+# 36. Error States
+
+Handle:
+
+* failed report generation;
+* failed timeline loading;
+* malformed historical records;
+* Agent Activity fetch failure.
+
+Report error:
+
+**Couldn't generate the report**
+
+Supporting text:
+
+**Your production records are safe. Try again.**
+
+# 37. Accessibility
+
+Ensure:
+
+* comparison images have useful labels;
+* issue severity isn't color-only;
+* timeline is screen-reader friendly;
+* Agent Activity tables/lists are keyboard accessible;
+* reports have semantic heading hierarchy.
+
+# 38. Responsive Quality
+
+Make sure these all work well on:
+
+* desktop Replit deployment;
+* tablet widths;
+* compact/mobile layouts.
+
+Prioritize the public web demo.
+
+# 39. Analytics Events
+
+Record:
+
+* report_generated;
+* report_viewed;
+* activity_viewed;
+* agent_activity_viewed;
+
+where useful.
+
+Do not track sensitive production content unnecessarily.
+
+# 40. Do Not Build Yet
+
+Do not spend significant time in this phase on:
+
+* RevenueCat;
+* OneSignal;
+* sophisticated mobile-native animations;
+* collaboration;
+* film scheduling;
+* call sheets;
+* budgeting;
+* editing;
+* video generation.
+
+Those are lower priority than presentation of the working continuity system.
+
+# Phase 8 Acceptance Test
+
+Do not mark Phase 8 complete until:
+
+1. Results screen uses real continuity issues.
+2. Reference and Current Take display correctly.
+3. issue cards show correct expected/current states.
+4. confidence UX works.
+5. All Clear appears only after real successful comparison.
+6. Activity timeline uses real persisted records.
+7. intentional changes appear in timeline.
+8. Circle Takes appear in timeline.
+9. continuity history displays state changes correctly.
+10. Agent Activity displays real tools/actions.
+11. latency is shown.
+12. failures are shown safely.
+13. hidden model reasoning is not exposed.
+14. Agent Engine/model status is visible in developer mode.
+15. Daily Report generates from real production data.
+16. factual report counts match database records.
+17. Report Agent generates real narrative summary.
+18. reports persist.
+19. The Last Cup full demo flow works.
+20. application reload preserves history.
+21. desktop comparison layout works.
+22. compact layout works.
+23. no fake analytics/data is displayed.
+24. build/lint/TypeScript checks pass.
+
+# Final Phase 8 Demo Test
+
+Run:
+
+```text
+Open The Last Cup
+
+Reference A
+↓
+Take B
+↓
+real issues detected
+↓
+approve jacket intentional from now on
+↓
+Take C
+↓
+jacket no longer flagged
+↓
+mug still flagged if changed
+↓
+Circle Take
+↓
+open Activity
+↓
+open Agent Activity
+↓
+generate Daily Report
+↓
+reload app
+↓
+everything remains persisted
+```
+
+If this flow is not reliable, fix it before declaring Phase 8 complete.
+
+# End-of-Phase Report
+
+When finished provide:
+
+1. Results improvements;
+2. Activity implementation;
+3. continuity-history implementation;
+4. Agent Activity implementation;
+5. Report Agent architecture;
+6. Daily Report functionality;
+7. Demo Mode functionality;
+8. responsive improvements;
+9. The Last Cup end-to-end results;
+10. known limitations;
+11. Phase 8 acceptance-test results.
+
+The final result should now clearly demonstrate:
+
+**TakeKeeper remembers how the shot should look, catches what changed, records what the filmmaker decided, and carries that approved continuity forward into future takes.**

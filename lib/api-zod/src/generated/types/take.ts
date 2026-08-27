@@ -5,6 +5,7 @@
  * TakeKeeper production workflow API
  * OpenAPI spec version: 0.2.0
  */
+import type { TakeReferenceStatus } from './takeReferenceStatus';
 
 export interface Take {
   id: string;
@@ -16,6 +17,7 @@ export interface Take {
   capturedAt: Date;
   isReference: boolean;
   isCircle: boolean;
+  referenceStatus: TakeReferenceStatus;
   issueCount: number;
   /** @nullable */
   mediaUrl: string | null;

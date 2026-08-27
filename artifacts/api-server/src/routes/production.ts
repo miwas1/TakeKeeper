@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, max } from "drizzle-orm";
 import { z } from "zod";
 import {
   continuityIssuesTable,
@@ -32,6 +32,7 @@ const sceneInput = z.object({
 const shotInput = z.object({
   label: z.string().min(1).max(40),
   description: z.string().max(500).optional(),
+  notes: z.string().max(2000).optional(),
 });
 
 const shotUpdate = shotInput.partial().extend({
@@ -42,6 +43,7 @@ const takeInput = z.object({
   notes: z.string().max(2000).optional(),
   isReference: z.boolean().optional().default(false),
   mediaId: idSchema.optional(),
+  submissionKey: z.string().min(1).max(120).optional(),
 });
 
 const takeUpdate = z.object({
@@ -125,6 +127,7 @@ async function takeResponse(take: typeof takesTable.$inferSelect) {
   const [media] = await db.select().from(mediaTable).where(eq(mediaTable.takeId, take.id)).limit(1);
   return {
     ...take,
+    referenceStatus: take.isReference ? "active" : take.referenceStatus,
     issueCount,
     mediaUrl: media ? `/api/storage/objects/${media.storageKey}` : null,
   };
@@ -257,36 +260,92 @@ router.post("/shots/:shotId/takes", async (req, res): Promise<void> => {
   if (!shotId.success || !body.success) return void res.status(400).json({ error: "Invalid take" });
   const row = await ownedShot(res.locals.userId as string, shotId.data);
   if (!row) return void res.status(404).json({ error: "Shot not found" });
-  const [{ value: currentCount }] = await db.select({ value: count() }).from(takesTable).where(eq(takesTable.shotId, row.shot.id));
-  if (body.data.isReference) {
-    await db.update(takesTable).set({ isReference: false }).where(eq(takesTable.shotId, row.shot.id));
-  }
-  const [take] = await db.insert(takesTable).values({
-    shotId: row.shot.id,
-    takeNumber: currentCount + 1,
-    status: "unrated",
-    notes: body.data.notes,
-    isReference: body.data.isReference,
-  }).returning();
-  if (body.data.mediaId) {
-    const [media] = await db.update(mediaTable).set({ takeId: take.id }).where(and(
-      eq(mediaTable.id, body.data.mediaId),
-      eq(mediaTable.projectId, row.project.id),
-      eq(mediaTable.sceneId, row.scene.id),
-      isNull(mediaTable.takeId),
-    )).returning({ id: mediaTable.id });
-    if (!media) {
-      await db.delete(takesTable).where(eq(takesTable.id, take.id));
-      return void res.status(400).json({
-        error: "Media is missing, belongs to another scene, or is already attached",
-        code: "INVALID_TAKE_MEDIA",
-      });
+  const result = await db.transaction(async (tx) => {
+    // Lock the shot row so concurrent submissions for the same shot cannot
+    // choose the same next number.
+    const [lockedShot] = await tx
+      .select({ id: shotsTable.id })
+      .from(shotsTable)
+      .where(eq(shotsTable.id, row.shot.id))
+      .for("update");
+    if (!lockedShot) return { kind: "missing" as const };
+
+    if (body.data.submissionKey) {
+      const [existing] = await tx
+        .select()
+        .from(takesTable)
+        .where(and(
+          eq(takesTable.shotId, row.shot.id),
+          eq(takesTable.submissionKey, body.data.submissionKey),
+        ))
+        .limit(1);
+      if (existing) return { kind: "existing" as const, take: existing };
     }
+
+    if (body.data.mediaId) {
+      const [media] = await tx
+        .select({ id: mediaTable.id })
+        .from(mediaTable)
+        .where(and(
+          eq(mediaTable.id, body.data.mediaId),
+          eq(mediaTable.projectId, row.project.id),
+          eq(mediaTable.sceneId, row.scene.id),
+          isNull(mediaTable.takeId),
+        ))
+        .limit(1)
+        .for("update");
+      if (!media) return { kind: "invalid-media" as const };
+    }
+
+    const [{ value: currentMax }] = await tx
+      .select({ value: max(takesTable.takeNumber) })
+      .from(takesTable)
+      .where(eq(takesTable.shotId, row.shot.id));
+    const [activeReference] = await tx
+      .select({ id: takesTable.id })
+      .from(takesTable)
+      .where(and(eq(takesTable.shotId, row.shot.id), eq(takesTable.isReference, true)))
+      .limit(1);
+    if (body.data.isReference) {
+      await tx.update(takesTable).set({ isReference: false, referenceStatus: "superseded" }).where(eq(takesTable.shotId, row.shot.id));
+    }
+    const [take] = await tx.insert(takesTable).values({
+      shotId: row.shot.id,
+      takeNumber: Number(currentMax ?? 0) + 1,
+      status: "unrated",
+      notes: body.data.notes,
+      isReference: body.data.isReference,
+      referenceStatus: body.data.isReference ? "active" : "none",
+      submissionKey: body.data.submissionKey,
+    }).returning();
+    if (body.data.mediaId) {
+      await tx.update(mediaTable).set({ takeId: take.id }).where(and(
+        eq(mediaTable.id, body.data.mediaId),
+        eq(mediaTable.projectId, row.project.id),
+        eq(mediaTable.sceneId, row.scene.id),
+        isNull(mediaTable.takeId),
+      ));
+    }
+    return {
+      kind: "created" as const,
+      take,
+      replacedReference: body.data.isReference && Boolean(activeReference),
+      previousReferenceTakeId: body.data.isReference ? activeReference?.id ?? null : null,
+    };
+  });
+  if (result.kind === "missing") return void res.status(404).json({ error: "Shot not found" });
+  if (result.kind === "invalid-media") {
+    return void res.status(400).json({
+      error: "Media is missing, belongs to another scene, or is already attached",
+      code: "INVALID_TAKE_MEDIA",
+    });
   }
+  const take = result.take;
+  if (result.kind === "existing") return void res.status(200).json(await takeResponse(take));
   await trackEvent({
     projectId: row.project.id,
-    name: body.data.isReference ? "reference_captured" : "take_created",
-    metadata: { sceneId: row.scene.id, shotId: row.shot.id, takeId: take.id, takeNumber: take.takeNumber },
+    name: result.replacedReference ? "reference_replaced" : body.data.isReference ? "reference_captured" : "take_created",
+    metadata: { sceneId: row.scene.id, shotId: row.shot.id, takeId: take.id, takeNumber: take.takeNumber, previousReferenceTakeId: result.previousReferenceTakeId },
   });
   res.status(201).json(await takeResponse(take));
 });
@@ -297,18 +356,79 @@ router.patch("/takes/:takeId", async (req, res): Promise<void> => {
   if (!takeId.success || !body.success) return void res.status(400).json({ error: "Invalid take update" });
   const row = await ownedTake(res.locals.userId as string, takeId.data);
   if (!row) return void res.status(404).json({ error: "Take not found" });
-  if (body.data.isReference) {
-    await db.update(takesTable).set({ isReference: false }).where(eq(takesTable.shotId, row.shot.id));
+  const nextIsReference = body.data.isReference ?? row.take.isReference;
+  const nextIsCircle = body.data.status ? body.data.status === "circle" : body.data.isCircle ?? row.take.isCircle;
+  const nextStatus = body.data.status ?? (body.data.isCircle === undefined ? row.take.status : nextIsCircle ? "circle" : "unrated");
+  const result = await db.transaction(async (tx) => {
+    await tx.select({ id: shotsTable.id }).from(shotsTable).where(eq(shotsTable.id, row.shot.id)).for("update");
+    const [activeReference] = await tx
+      .select({ id: takesTable.id })
+      .from(takesTable)
+      .where(and(eq(takesTable.shotId, row.shot.id), eq(takesTable.isReference, true)))
+      .limit(1);
+    if (nextIsReference) {
+      await tx.update(takesTable).set({ isReference: false, referenceStatus: "superseded" }).where(eq(takesTable.shotId, row.shot.id));
+    }
+    const [updated] = await tx
+      .update(takesTable)
+      .set({
+        notes: body.data.notes,
+        isReference: nextIsReference,
+        referenceStatus: nextIsReference ? "active" : row.take.isReference || row.take.referenceStatus === "active" ? "superseded" : row.take.referenceStatus,
+        isCircle: nextIsCircle,
+        status: nextStatus,
+        updatedAt: new Date(),
+      })
+      .where(eq(takesTable.id, row.take.id))
+      .returning();
+    return {
+      updated,
+      replacedReference: nextIsReference && Boolean(activeReference && activeReference.id !== row.take.id),
+      previousReferenceTakeId: activeReference && activeReference.id !== row.take.id ? activeReference.id : null,
+    };
+  });
+  if (body.data.isReference === true && result.replacedReference) {
+    await trackEvent({
+      projectId: row.project.id,
+      name: "reference_replaced",
+      metadata: { sceneId: row.scene.id, shotId: row.shot.id, takeId: result.updated.id, previousReferenceTakeId: result.previousReferenceTakeId },
+    });
   }
-  const isCircle = body.data.status === "circle" ? true : body.data.isCircle;
-  const status = isCircle ? "circle" : body.data.status;
-  const [updated] = await db.update(takesTable).set({ ...body.data, isCircle, status, updatedAt: new Date() }).where(eq(takesTable.id, row.take.id)).returning();
+  if (body.data.status !== undefined || body.data.isCircle !== undefined) {
+    await trackEvent({
+      projectId: row.project.id,
+      name: result.updated.isCircle && !row.take.isCircle ? "take_circled" : result.updated.status === "reject" ? "take_rejected" : "take_status_updated",
+      metadata: { sceneId: row.scene.id, shotId: row.shot.id, takeId: result.updated.id, takeNumber: result.updated.takeNumber, status: result.updated.status },
+    });
+  }
+  const updated = result.updated;
+  res.json(await takeResponse(updated));
+});
+
+router.delete("/takes/:takeId", async (req, res): Promise<void> => {
+  const takeId = idSchema.safeParse(req.params.takeId);
+  if (!takeId.success) return void res.status(400).json({ error: "Invalid take id" });
+  const row = await ownedTake(res.locals.userId as string, takeId.data);
+  if (!row) return void res.status(404).json({ error: "Take not found" });
+
+  const media = await db.select().from(mediaTable).where(eq(mediaTable.takeId, row.take.id));
+  try {
+    await Promise.all(media.map((item) => mediaStorage.delete(item.storageKey)));
+  } catch (error) {
+    req.log.error({ error, takeId: row.take.id }, "Storage cleanup blocked take deletion");
+    return void res.status(503).json({ error: "Take media could not be removed. Nothing was deleted.", code: "STORAGE_DELETE_FAILED" });
+  }
+
+  await db.transaction(async (tx) => {
+    if (media.length) await tx.delete(mediaTable).where(inArray(mediaTable.id, media.map((item) => item.id)));
+    await tx.delete(takesTable).where(eq(takesTable.id, row.take.id));
+  });
   await trackEvent({
     projectId: row.project.id,
-    name: isCircle ? "take_circled" : "take_status_updated",
-    metadata: { sceneId: row.scene.id, shotId: row.shot.id, takeId: updated.id, takeNumber: updated.takeNumber, status: updated.status },
+    name: "take_deleted",
+    metadata: { sceneId: row.scene.id, shotId: row.shot.id, takeId: row.take.id, takeNumber: row.take.takeNumber },
   });
-  res.json(await takeResponse(updated));
+  res.status(204).end();
 });
 
 router.get("/scenes/:sceneId/continuity", async (req, res): Promise<void> => {
@@ -395,6 +515,7 @@ router.post("/media", async (req, res): Promise<void> => {
   const body = z.object({
     projectId: idSchema,
     sceneId: idSchema.optional(),
+    takeId: idSchema.optional(),
     storageKey: z.string().min(1).max(1000),
     mediaType: z.string().min(1).max(100),
     width: z.number().int().positive().optional(),
@@ -407,6 +528,34 @@ router.post("/media", async (req, res): Promise<void> => {
     const [scene] = await db.select({ id: scenesTable.id }).from(scenesTable).where(and(eq(scenesTable.id, body.data.sceneId), eq(scenesTable.projectId, project.id))).limit(1);
     if (!scene) return void res.status(404).json({ error: "Scene not found in this project", code: "SCENE_NOT_FOUND" });
   }
+  if (body.data.takeId) {
+    const [take] = await db
+      .select({ id: takesTable.id })
+      .from(takesTable)
+      .innerJoin(shotsTable, eq(takesTable.shotId, shotsTable.id))
+      .where(and(
+        eq(takesTable.id, body.data.takeId),
+        eq(shotsTable.sceneId, body.data.sceneId ?? ""),
+      ))
+      .limit(1);
+    if (!take) return void res.status(404).json({ error: "Take not found in this scene", code: "TAKE_NOT_FOUND" });
+  }
+
+  // Registration is safe to retry after a lost response. The storage key is
+  // unique, so return the already-registered record instead of creating a
+  // second media row or forcing the client to start over.
+  const [alreadyRegistered] = await db
+    .select()
+    .from(mediaTable)
+    .where(and(eq(mediaTable.storageKey, body.data.storageKey), eq(mediaTable.projectId, project.id)))
+    .limit(1);
+  if (alreadyRegistered) {
+    if (body.data.sceneId && alreadyRegistered.sceneId !== body.data.sceneId) {
+      return void res.status(403).json({ error: "Media does not belong to this scene", code: "MEDIA_NOT_AUTHORIZED" });
+    }
+    return void res.status(200).json({ ...alreadyRegistered, mediaUrl: `/api/storage/objects/${alreadyRegistered.storageKey}` });
+  }
+
   const [reservation] = await db
     .select()
     .from(mediaUploadReservationsTable)
@@ -419,24 +568,66 @@ router.post("/media", async (req, res): Promise<void> => {
   if (!reservation || reservation.consumedAt || reservation.expiresAt <= new Date()) {
     return void res.status(403).json({ error: "Upload reservation is missing, expired, or already used", code: "INVALID_UPLOAD_RESERVATION" });
   }
-  if (body.data.sceneId && reservation.sceneId !== body.data.sceneId) {
+  if ((body.data.sceneId ?? null) !== reservation.sceneId) {
     return void res.status(403).json({ error: "Upload reservation does not match this scene", code: "INVALID_UPLOAD_RESERVATION" });
   }
+  let verifiedObject: { contentType: string; size: number; width: number; height: number };
   try {
     const object = await mediaStorage.readMetadata(reservation.storageKey);
     if (object.contentType !== reservation.contentType || object.contentType !== body.data.mediaType || object.size > reservation.maxSize) {
       return void res.status(422).json({ error: "Uploaded object does not match its reservation", code: "UPLOAD_METADATA_MISMATCH" });
     }
+    verifiedObject = object;
   } catch (error) {
     req.log.warn({ error, storageKey: reservation.storageKey }, "Upload verification failed");
     return void res.status(422).json({ error: "Uploaded object could not be verified", code: "UPLOAD_NOT_FOUND" });
   }
-  const media = await db.transaction(async (tx) => {
-    const [created] = await tx.insert(mediaTable).values(body.data).returning();
-    await tx.update(mediaUploadReservationsTable).set({ consumedAt: new Date() }).where(eq(mediaUploadReservationsTable.id, reservation.id));
-    return created;
+  const result = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(mediaTable).values({
+      projectId: body.data.projectId,
+      sceneId: body.data.sceneId,
+      takeId: body.data.takeId,
+      storageKey: body.data.storageKey,
+      mediaType: body.data.mediaType,
+      width: verifiedObject.width,
+      height: verifiedObject.height,
+    }).onConflictDoNothing({ target: mediaTable.storageKey }).returning();
+    if (created) {
+      await tx.update(mediaUploadReservationsTable).set({ consumedAt: new Date() }).where(eq(mediaUploadReservationsTable.id, reservation.id));
+      return { media: created, created: true } as const;
+    }
+    const [existing] = await tx
+      .select()
+      .from(mediaTable)
+      .where(and(eq(mediaTable.storageKey, body.data.storageKey), eq(mediaTable.projectId, project.id)))
+      .limit(1);
+    if (!existing) throw new Error("Media registration conflict could not be resolved");
+    return { media: existing, created: false } as const;
   });
-  res.status(201).json({ ...media, mediaUrl: `/api/storage/objects/${media.storageKey}` });
+  res.status(result.created ? 201 : 200).json({ ...result.media, mediaUrl: `/api/storage/objects/${result.media.storageKey}` });
+});
+
+router.delete("/media/:mediaId", async (req, res): Promise<void> => {
+  const mediaId = idSchema.safeParse(req.params.mediaId);
+  if (!mediaId.success) return void res.status(400).json({ error: "Invalid media id" });
+  const [media] = await db
+    .select({ media: mediaTable, project: projectsTable })
+    .from(mediaTable)
+    .innerJoin(projectsTable, eq(mediaTable.projectId, projectsTable.id))
+    .where(and(eq(mediaTable.id, mediaId.data), eq(projectsTable.ownerId, res.locals.userId as string)))
+    .limit(1);
+  if (!media) return void res.status(404).json({ error: "Media not found", code: "MEDIA_NOT_FOUND" });
+  if (media.media.takeId) {
+    return void res.status(409).json({ error: "Attached media must be deleted with its take", code: "MEDIA_ATTACHED" });
+  }
+  try {
+    await mediaStorage.delete(media.media.storageKey);
+  } catch (error) {
+    req.log.error({ error, mediaId: media.media.id }, "Storage cleanup blocked media deletion");
+    return void res.status(503).json({ error: "Media could not be removed. Nothing was deleted.", code: "STORAGE_DELETE_FAILED" });
+  }
+  await db.delete(mediaTable).where(eq(mediaTable.id, media.media.id));
+  res.status(204).end();
 });
 
 router.get("/reports/daily", async (req, res): Promise<void> => {

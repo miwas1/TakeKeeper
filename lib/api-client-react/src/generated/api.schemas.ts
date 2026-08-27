@@ -88,6 +88,8 @@ export interface Shot {
   label: string;
   /** @nullable */
   description: string | null;
+  /** @nullable */
+  notes: string | null;
   status: string;
   takeCount: number;
   issueCount: number;
@@ -99,14 +101,25 @@ export interface ShotInput {
   /** @minLength 1 */
   label: string;
   description?: string;
+  notes?: string;
 }
 
 export interface ShotUpdate {
   /** @minLength 1 */
   label?: string;
   description?: string;
+  notes?: string;
   status?: string;
 }
+
+export type TakeReferenceStatus = typeof TakeReferenceStatus[keyof typeof TakeReferenceStatus];
+
+
+export const TakeReferenceStatus = {
+  none: 'none',
+  active: 'active',
+  superseded: 'superseded',
+} as const;
 
 export interface Take {
   id: string;
@@ -118,6 +131,7 @@ export interface Take {
   capturedAt: string;
   isReference: boolean;
   isCircle: boolean;
+  referenceStatus: TakeReferenceStatus;
   issueCount: number;
   /** @nullable */
   mediaUrl: string | null;
@@ -127,6 +141,11 @@ export interface TakeInput {
   notes?: string;
   isReference?: boolean;
   mediaId?: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  submissionKey?: string;
 }
 
 export interface TakeUpdate {
@@ -193,13 +212,22 @@ export interface Media {
   createdAt: string;
 }
 
+export type UploadRequestContentType = typeof UploadRequestContentType[keyof typeof UploadRequestContentType];
+
+
+export const UploadRequestContentType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
 export interface UploadRequest {
   projectId: string;
   sceneId?: string;
   /** @minLength 1 */
   fileName: string;
-  /** @minLength 1 */
-  contentType: string;
+  contentType: UploadRequestContentType;
+  /** @maximum 20971520 */
   size: number;
 }
 

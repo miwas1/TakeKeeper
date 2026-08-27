@@ -1578,6 +1578,77 @@ export const useUpdateTake = <TError = ErrorType<unknown>,
       return useMutation(getUpdateTakeMutationOptions(options));
     }
 
+export const getDeleteTakeUrl = (takeId: string,) => {
+
+
+
+
+  return `/api/takes/${takeId}`
+}
+
+/**
+ * @summary Delete a take and its media
+ */
+export const deleteTake = async (takeId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteTakeUrl(takeId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteTakeMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTake>>, TError,{takeId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTake>>, TError,{takeId: string}, TContext> => {
+
+const mutationKey = ['deleteTake'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTake>>, {takeId: string}> = (props) => {
+          const {takeId} = props ?? {};
+
+          return  deleteTake(takeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTakeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTake>>>
+
+    export type DeleteTakeMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Delete a take and its media
+ */
+export const useDeleteTake = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTake>>, TError,{takeId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTake>>,
+        TError,
+        {takeId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteTakeMutationOptions(options));
+    }
+
 export const getListContinuityItemsUrl = (sceneId: string,) => {
 
 
@@ -2082,6 +2153,77 @@ export const useRegisterMedia = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getRegisterMediaMutationOptions(options));
+    }
+
+export const getDeleteMediaUrl = (mediaId: string,) => {
+
+
+
+
+  return `/api/media/${mediaId}`
+}
+
+/**
+ * @summary Delete an unattached media object
+ */
+export const deleteMedia = async (mediaId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteMediaUrl(mediaId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteMediaMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMedia>>, TError,{mediaId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMedia>>, TError,{mediaId: string}, TContext> => {
+
+const mutationKey = ['deleteMedia'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMedia>>, {mediaId: string}> = (props) => {
+          const {mediaId} = props ?? {};
+
+          return  deleteMedia(mediaId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMediaMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMedia>>>
+
+    export type DeleteMediaMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Delete an unattached media object
+ */
+export const useDeleteMedia = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMedia>>, TError,{mediaId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMedia>>,
+        TError,
+        {mediaId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteMediaMutationOptions(options));
     }
 
 export const getGetDailyReportUrl = (params: GetDailyReportParams,) => {

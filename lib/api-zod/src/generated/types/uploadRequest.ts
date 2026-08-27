@@ -5,13 +5,14 @@
  * TakeKeeper production workflow API
  * OpenAPI spec version: 0.2.0
  */
+import type { UploadRequestContentType } from './uploadRequestContentType';
 
 export interface UploadRequest {
   projectId: string;
   sceneId?: string;
   /** @minLength 1 */
   fileName: string;
-  /** @minLength 1 */
-  contentType: string;
+  contentType: UploadRequestContentType;
+  /** @maximum 20971520 */
   size: number;
 }

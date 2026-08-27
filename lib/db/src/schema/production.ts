@@ -8,6 +8,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { projectsTable, usersTable } from "./core";
 import { screenplaySourcesTable } from "./script";
 
@@ -41,6 +42,7 @@ export const shotsTable = pgTable(
     sceneId: uuid("scene_id").notNull().references(() => scenesTable.id, { onDelete: "cascade" }),
     label: text("label").notNull(),
     description: text("description"),
+    notes: text("notes"),
     status: text("status").notNull().default("planned"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
@@ -54,16 +56,20 @@ export const takesTable = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     shotId: uuid("shot_id").notNull().references(() => shotsTable.id, { onDelete: "cascade" }),
     takeNumber: integer("take_number").notNull(),
-    status: text("status").notNull().default("captured"),
+    status: text("status").notNull().default("unrated"),
     notes: text("notes"),
     capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
     isReference: boolean("is_reference").notNull().default(false),
     isCircle: boolean("is_circle").notNull().default(false),
+    referenceStatus: text("reference_status").notNull().default("none"),
+    submissionKey: text("submission_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
   (table) => [
     uniqueIndex("takes_shot_number_uidx").on(table.shotId, table.takeNumber),
+    uniqueIndex("takes_shot_submission_uidx").on(table.shotId, table.submissionKey),
+    uniqueIndex("takes_one_reference_uidx").on(table.shotId).where(sql`${table.isReference} = true`),
     index("takes_shot_idx").on(table.shotId),
   ],
 );

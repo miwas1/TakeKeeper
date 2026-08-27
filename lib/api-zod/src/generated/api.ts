@@ -276,6 +276,7 @@ export const GetSceneResponse = zod.object({
   "sceneId": zod.string(),
   "label": zod.string(),
   "description": zod.string().nullable(),
+  "notes": zod.string().nullable(),
   "status": zod.string(),
   "takeCount": zod.number(),
   "issueCount": zod.number(),
@@ -333,6 +334,7 @@ export const ListShotsResponseItem = zod.object({
   "sceneId": zod.string(),
   "label": zod.string(),
   "description": zod.string().nullable(),
+  "notes": zod.string().nullable(),
   "status": zod.string(),
   "takeCount": zod.number(),
   "issueCount": zod.number(),
@@ -353,7 +355,8 @@ export const CreateShotParams = zod.object({
 
 export const CreateShotBody = zod.object({
   "label": zod.string().min(1),
-  "description": zod.string().optional()
+  "description": zod.string().optional(),
+  "notes": zod.string().optional()
 })
 
 export const CreateShotResponse = zod.object({
@@ -361,6 +364,7 @@ export const CreateShotResponse = zod.object({
   "sceneId": zod.string(),
   "label": zod.string(),
   "description": zod.string().nullable(),
+  "notes": zod.string().nullable(),
   "status": zod.string(),
   "takeCount": zod.number(),
   "issueCount": zod.number(),
@@ -381,6 +385,7 @@ export const GetShotResponse = zod.object({
   "sceneId": zod.string(),
   "label": zod.string(),
   "description": zod.string().nullable(),
+  "notes": zod.string().nullable(),
   "status": zod.string(),
   "takeCount": zod.number(),
   "issueCount": zod.number(),
@@ -409,6 +414,7 @@ export const GetShotResponse = zod.object({
   "capturedAt": zod.coerce.date(),
   "isReference": zod.boolean(),
   "isCircle": zod.boolean(),
+  "referenceStatus": zod.enum(['none', 'active', 'superseded']),
   "issueCount": zod.number(),
   "mediaUrl": zod.string().nullable()
 }))
@@ -428,6 +434,7 @@ export const UpdateShotParams = zod.object({
 export const UpdateShotBody = zod.object({
   "label": zod.string().min(1).optional(),
   "description": zod.string().optional(),
+  "notes": zod.string().optional(),
   "status": zod.string().optional()
 })
 
@@ -436,6 +443,7 @@ export const UpdateShotResponse = zod.object({
   "sceneId": zod.string(),
   "label": zod.string(),
   "description": zod.string().nullable(),
+  "notes": zod.string().nullable(),
   "status": zod.string(),
   "takeCount": zod.number(),
   "issueCount": zod.number(),
@@ -469,6 +477,7 @@ export const ListTakesResponseItem = zod.object({
   "capturedAt": zod.coerce.date(),
   "isReference": zod.boolean(),
   "isCircle": zod.boolean(),
+  "referenceStatus": zod.enum(['none', 'active', 'superseded']),
   "issueCount": zod.number(),
   "mediaUrl": zod.string().nullable()
 })
@@ -482,10 +491,15 @@ export const CreateTakeParams = zod.object({
   "shotId": zod.coerce.string()
 })
 
+export const createTakeBodySubmissionKeyMax = 120;
+
+
+
 export const CreateTakeBody = zod.object({
   "notes": zod.string().optional(),
   "isReference": zod.boolean().optional(),
-  "mediaId": zod.string().optional()
+  "mediaId": zod.string().optional(),
+  "submissionKey": zod.string().min(1).max(createTakeBodySubmissionKeyMax).optional()
 })
 
 export const CreateTakeResponse = zod.object({
@@ -497,6 +511,7 @@ export const CreateTakeResponse = zod.object({
   "capturedAt": zod.coerce.date(),
   "isReference": zod.boolean(),
   "isCircle": zod.boolean(),
+  "referenceStatus": zod.enum(['none', 'active', 'superseded']),
   "issueCount": zod.number(),
   "mediaUrl": zod.string().nullable()
 })
@@ -525,9 +540,20 @@ export const UpdateTakeResponse = zod.object({
   "capturedAt": zod.coerce.date(),
   "isReference": zod.boolean(),
   "isCircle": zod.boolean(),
+  "referenceStatus": zod.enum(['none', 'active', 'superseded']),
   "issueCount": zod.number(),
   "mediaUrl": zod.string().nullable()
 })
+
+
+/**
+ * @summary Delete a take and its media
+ */
+export const DeleteTakeParams = zod.object({
+  "takeId": zod.coerce.string()
+})
+
+export const DeleteTakeResponse = zod.void()
 
 
 /**
@@ -658,6 +684,7 @@ export const CreateContinuityChangeResponse = zod.object({
  * @summary Request a direct media upload URL
  */
 
+export const requestUploadUrlBodySizeMax = 20971520;
 
 
 
@@ -665,8 +692,8 @@ export const RequestUploadUrlBody = zod.object({
   "projectId": zod.string(),
   "sceneId": zod.string().optional(),
   "fileName": zod.string().min(1),
-  "contentType": zod.string().min(1),
-  "size": zod.number()
+  "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp']),
+  "size": zod.number().max(requestUploadUrlBodySizeMax)
 })
 
 export const RequestUploadUrlResponse = zod.object({
@@ -700,6 +727,16 @@ export const RegisterMediaResponse = zod.object({
   "height": zod.number().nullable(),
   "createdAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary Delete an unattached media object
+ */
+export const DeleteMediaParams = zod.object({
+  "mediaId": zod.coerce.string()
+})
+
+export const DeleteMediaResponse = zod.void()
 
 
 /**

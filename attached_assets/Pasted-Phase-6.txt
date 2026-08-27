@@ -1,0 +1,728 @@
+Continue building **TakeKeeper** from the completed previous phases.
+
+At this point the application should already have:
+
+* project, scene, shot, and take persistence;
+* Continuity Bible data;
+* reference and take image storage;
+* Script Breakdown Agent;
+* Gemini Visual State Agent;
+* validated structured observations for reference images and new takes;
+* Agent Activity logging;
+* Google ADK / Agent Platform architecture.
+
+This phase builds the core continuity reasoning system.
+
+Do not rebuild working functionality from previous phases.
+
+Before coding:
+
+1. inspect the existing repository;
+2. verify previous acceptance tests still pass;
+3. inspect Visual State observation schemas;
+4. inspect reference and take observation persistence;
+5. inspect Continuity Bible data;
+6. inspect Google ADK / Agent Platform configuration;
+7. inspect existing issue tables and UI shells;
+8. provide a concise implementation plan;
+9. then implement this phase.
+
+# Phase 6 Goal
+
+Build the real **Continuity Supervisor Agent**.
+
+Its responsibility is:
+
+**Compare the approved continuity state against the observed state of a new take and decide what requires human attention.**
+
+The agent must convert structured observations into structured continuity issues.
+
+The key workflow is:
+
+```text
+Approved continuity state
++
+Reference observations
++
+Current take observations
++
+Script requirements
++
+Previously approved changes
+↓
+Continuity Supervisor Agent
+↓
+Validated ContinuityIssue[]
+↓
+Persist issues
+↓
+Results screen
+```
+
+This is the centerpiece of TakeKeeper.
+
+# 1. Separation of Responsibilities
+
+Maintain strict separation between:
+
+## Visual State Agent
+
+Answers:
+
+**What is visible?**
+
+## Continuity Supervisor Agent
+
+Answers:
+
+**Does what is visible conflict with the approved continuity state?**
+
+Do not collapse these into one giant multimodal prompt.
+
+The Continuity Supervisor should primarily reason over structured data generated in earlier phases.
+
+# 2. Inputs
+
+For each continuity check, provide the agent with only relevant information:
+
+* active project;
+* active scene;
+* active shot;
+* current take;
+* scene Continuity Bible;
+* approved reference observations;
+* current take observations;
+* script-derived continuity requirements;
+* previous approved continuity state changes;
+* relevant shot-scoped changes;
+* relevant scene-scoped changes.
+
+Avoid sending irrelevant project history.
+
+# 3. Approved State Resolution
+
+Before comparison, implement a deterministic service that resolves the currently approved state.
+
+The approved state may come from:
+
+1. screenplay / Continuity Bible;
+2. approved reference image observations;
+3. user-edited continuity items;
+4. previously approved intentional changes.
+
+The application—not the language model—should resolve which state changes are currently effective.
+
+Create a service conceptually like:
+
+`resolveApprovedContinuityState(sceneId, shotId, takeId)`
+
+It should return the authoritative continuity state applicable to the current take.
+
+# 4. State Precedence
+
+Define clear precedence.
+
+A sensible approach is:
+
+```text
+Base Continuity Bible
+↓
+Approved reference observations
+↓
+Explicit user edits
+↓
+Applicable intentional state changes
+↓
+Effective approved state for current take
+```
+
+Do not let model output silently override explicit human decisions.
+
+Human-approved state is authoritative.
+
+# 5. Continuity Supervisor Agent
+
+Implement the **Continuity Supervisor Agent** using:
+
+* Google Gemini;
+* Google ADK;
+* Google Cloud Agent Platform / Agent Engine;
+* structured input/output;
+* validated application tool calls.
+
+Do not use:
+
+* OpenAI;
+* Anthropic;
+* Claude;
+* OpenRouter;
+* LangChain;
+* non-Google AI models.
+
+# 6. Comparison Logic
+
+The agent should compare entities intelligently.
+
+Examples:
+
+Reference:
+
+```text
+Maya's jacket
+closure: unzipped
+```
+
+Current:
+
+```text
+Maya's jacket
+closure: zipped
+```
+
+Possible issue:
+
+```text
+Jacket changed
+Wardrobe
+Expected: unzipped
+Observed: zipped
+```
+
+Reference:
+
+```text
+White mug
+position: actor_right
+```
+
+Current:
+
+```text
+White mug
+position: actor_left
+```
+
+Possible issue:
+
+```text
+Coffee mug moved
+Props
+Expected: Maya's right
+Observed: Maya's left
+```
+
+# 7. Structured Issue Output
+
+Every issue must use a validated structure.
+
+Use or extend the existing `ContinuityIssue` schema.
+
+Conceptually:
+
+```json
+{
+  "category": "wardrobe",
+  "entity": "Maya's red jacket",
+  "expected_state": {
+    "closure": "unzipped"
+  },
+  "observed_state": {
+    "closure": "zipped"
+  },
+  "severity": "high",
+  "confidence": 0.94,
+  "explanation": "The approved state shows Maya's jacket unzipped, while the current take shows it zipped.",
+  "suggested_fix": "Unzip Maya's jacket before the next take."
+}
+```
+
+Validate every result before persistence.
+
+Never save arbitrary Gemini prose as authoritative issue data.
+
+# 8. Severity
+
+Support meaningful severity levels such as:
+
+* low;
+* medium;
+* high.
+
+Severity should consider:
+
+* narrative importance;
+* visual prominence;
+* script requirement;
+* likelihood of being noticeable;
+* whether the difference contradicts an explicitly approved state.
+
+Do not make every mismatch high severity.
+
+# 9. Confidence
+
+Confidence should reflect both:
+
+* confidence in the underlying observations;
+* confidence that the observed difference actually represents a continuity mismatch.
+
+Do not treat uncertain visual observations as strong continuity errors.
+
+# 10. Confidence UX Rules
+
+Use the existing confidence thresholds:
+
+## 85%+
+
+Normal issue presentation.
+
+## 60–84%
+
+Label:
+
+**Likely mismatch**
+
+## Below 60%
+
+Place under:
+
+**Worth checking**
+
+Low-confidence issues should not overwhelm the user.
+
+# 11. Missing Visibility
+
+If an entity is not visible in the current take:
+
+Do not automatically call it a mismatch.
+
+Example:
+
+Reference:
+
+```text
+Phone: face-down
+```
+
+Current:
+
+```text
+Phone: not visible
+```
+
+This does not necessarily mean the phone is missing.
+
+The Continuity Supervisor should distinguish:
+
+* changed;
+* absent;
+* obscured;
+* not visible;
+* uncertain.
+
+# 12. Category Awareness
+
+Support continuity reasoning across:
+
+* Wardrobe
+* Props
+* Hair & Makeup
+* Blocking
+* Set
+* Action
+* Other
+
+Do not force the same comparison strategy on every category.
+
+# 13. Position Comparison
+
+Normalize positional state before comparison.
+
+For example:
+
+```text
+actor_right
+right_of_actor
+Maya's right
+```
+
+should not automatically be treated as three different states.
+
+Create normalization helpers where appropriate.
+
+Do not depend entirely on the model to resolve trivial formatting differences.
+
+# 14. State Equality
+
+Implement deterministic equality/normalization where practical.
+
+Examples:
+
+```text
+"unzipped"
+"open"
+```
+
+may represent equivalent jacket states depending on context.
+
+```text
+"actor_right"
+"Maya's right"
+```
+
+may represent equivalent positional states.
+
+Use structured normalization where reliable.
+
+Use Gemini reasoning only where semantic comparison is actually needed.
+
+# 15. Tool Calling
+
+The Continuity Supervisor Agent should have validated application tools such as:
+
+* `get_scene`
+* `get_continuity_bible`
+* `get_reference_take`
+* `get_take_observations`
+* `get_previous_approved_changes`
+* `get_effective_continuity_state`
+* `save_observations`
+* `create_issue`
+* `record_agent_event`
+
+The model must not directly write to PostgreSQL.
+
+Required flow:
+
+```text
+Agent requests tool
+→ server validates arguments
+→ application service executes
+→ result returned to agent
+→ agent continues
+```
+
+# 16. Continuity Check Workflow
+
+Create a clear production workflow such as:
+
+```text
+ContinuityCheckWorkflow
+
+1. Load scene
+2. Load shot
+3. Load Continuity Bible
+4. Resolve approved state
+5. Load reference observations
+6. Load current observations
+7. Run Continuity Supervisor
+8. Validate issues
+9. Persist issues
+10. Return result
+```
+
+Use deterministic ADK workflow orchestration where appropriate.
+
+# 17. Triggering the Workflow
+
+When a new take has valid Visual State observations:
+
+enable:
+
+**Run Continuity Check**
+
+or automatically begin the check if this matches the existing Shoot UX.
+
+Do not run duplicate checks unnecessarily.
+
+Track check status:
+
+* pending;
+* analyzing;
+* completed;
+* failed.
+
+# 18. Results Screen Integration
+
+Replace the Phase 2 results shell with real data.
+
+Dynamic title:
+
+**1 thing changed**
+
+or:
+
+**3 things changed**
+
+Subtitle:
+
+`Take 04 compared with approved reference`
+
+Display:
+
+* Reference;
+* Current Take;
+* real issue cards.
+
+Do not use hardcoded demo findings.
+
+# 19. Issue Cards
+
+Populate issue cards from actual database results.
+
+Each card should show:
+
+* issue title;
+* category;
+* confidence;
+* severity;
+* expected state;
+* observed state;
+* short explanation;
+* suggested correction.
+
+Actions can include:
+
+* Fix & Recheck
+* Intentional
+* Ignore
+* Add Note
+
+Phase 7 will complete the deeper decision/memory behavior.
+
+# 20. No-Issue Result
+
+If no meaningful continuity issues are found:
+
+show:
+
+# All clear
+
+Supporting text:
+
+**Setup matches your approved continuity.**
+
+This must only appear after a successful real comparison.
+
+Do not show it merely because analysis failed.
+
+# 21. Failure State
+
+If comparison fails:
+
+show:
+
+**Couldn't complete the continuity check**
+
+Supporting text:
+
+**Your take is saved. Try the analysis again.**
+
+CTA:
+
+**Retry Analysis**
+
+Never lose:
+
+* take;
+* image;
+* Visual State observations.
+
+# 22. Idempotency
+
+Retrying a continuity check must not create duplicate issues.
+
+Before persisting new results:
+
+* identify the analysis run;
+* replace or version previous issues appropriately;
+* preserve human-resolved historical issues where needed.
+
+# 23. Issue Deduplication
+
+The same logical mismatch should not appear multiple times.
+
+Example:
+
+Do not produce both:
+
+* `Jacket closure changed`
+* `Red jacket is zipped`
+* `Maya's jacket differs`
+
+for the same underlying problem.
+
+Normalize/deduplicate issue output before display.
+
+# 24. False-Positive Reduction
+
+Prefer fewer useful warnings over many noisy warnings.
+
+Do not create an issue when:
+
+* both states are effectively equivalent;
+* confidence is extremely low;
+* current entity is simply not visible;
+* difference is unsupported;
+* approved intentional change already applies.
+
+# 25. Agent Activity
+
+Record real workflow activity.
+
+Example:
+
+```text
+ContinuityWorkflow → get_scene
+ContinuityWorkflow → get_continuity_bible
+ContinuityWorkflow → get_reference_take
+ContinuityWorkflow → get_previous_approved_changes
+ContinuitySupervisor → compare_state
+ContinuitySupervisor → create_issue ×3
+```
+
+Record:
+
+* timestamp;
+* agent;
+* action;
+* tool;
+* latency;
+* success/failure.
+
+Do not reveal chain-of-thought.
+
+# 26. Developer Comparison View
+
+Create or enhance a developer-only comparison inspector.
+
+It should show:
+
+```text
+ENTITY: Maya's jacket
+
+APPROVED
+closure: unzipped
+
+CURRENT
+closure: zipped
+
+DECISION
+mismatch: true
+confidence: 94%
+severity: high
+```
+
+This should help debug real comparison behavior.
+
+# 27. Analysis Run Records
+
+If useful, introduce a proper analysis-run model/table.
+
+Store:
+
+* take;
+* reference;
+* model/configuration;
+* started_at;
+* completed_at;
+* status;
+* latency;
+* error metadata;
+* schema version.
+
+Do not store private hidden reasoning.
+
+# 28. Performance
+
+Reuse existing reference observations.
+
+Do not re-run Gemini visual analysis on the approved reference every time a take is checked.
+
+Preferred:
+
+```text
+Reference analyzed once
+↓
+saved observations
+↓
+reused for many takes
+```
+
+# 29. The Last Cup Test
+
+Use the real demo images.
+
+Reference A should represent:
+
+* red jacket unzipped;
+* white mug on Maya's right;
+* black phone face-down.
+
+Take B should intentionally contain:
+
+* jacket zipped;
+* mug moved;
+* phone face-up.
+
+The system should attempt to identify these changes from real Gemini analysis.
+
+Do NOT hardcode the expected answer.
+
+# 30. Do Not Build Yet
+
+Do not yet complete:
+
+* persistent Intentional → From now on state mutation;
+* advanced Fix & Recheck loop;
+* scoped continuity state history;
+* Daily Report Agent;
+* RevenueCat;
+* OneSignal.
+
+Those come next.
+
+# Phase 6 Acceptance Test
+
+Do not mark Phase 6 complete until:
+
+1. Reference A has valid structured observations.
+2. Take B has valid structured observations.
+3. Run Continuity Check.
+4. Real Continuity Supervisor executes.
+5. Approved state is loaded.
+6. Applicable approved changes are loaded.
+7. Gemini receives structured comparison context.
+8. Structured issues validate.
+9. Issues persist.
+10. Results screen displays real results.
+11. issue counts are correct.
+12. confidence UI works.
+13. low-confidence items are down-ranked.
+14. not-visible entities do not automatically become mismatches.
+15. equivalent normalized states do not produce obvious false positives.
+16. duplicate issues are removed.
+17. failed checks can be retried.
+18. retries do not duplicate issues.
+19. Agent Activity records real workflow actions.
+20. no hardcoded demo results exist.
+21. no non-Google AI exists.
+22. build/lint/TypeScript checks pass.
+
+# End-of-Phase Report
+
+When finished provide:
+
+1. Continuity Supervisor architecture;
+2. ADK workflow implemented;
+3. approved-state resolution logic;
+4. issue schema;
+5. comparison normalization;
+6. tool calls implemented;
+7. confidence/severity strategy;
+8. retry/idempotency behavior;
+9. results-screen integration;
+10. The Last Cup evaluation results;
+11. known limitations;
+12. Phase 6 acceptance-test results.
+
+Do not continue until the system can reliably turn structured reference/take observations into useful real continuity warnings.

@@ -1,0 +1,497 @@
+Continue building **TakeKeeper** from the completed previous phases.
+
+This phase implements the real shooting-media workflow.
+
+Do NOT yet build the Continuity Supervisor comparison logic. That belongs to a later phase.
+
+Before coding:
+
+1. inspect the existing repository;
+2. confirm previous acceptance tests still pass;
+3. inspect the Shoot screen and shot/take database structure;
+4. inspect media storage;
+5. inspect existing reference upload shell;
+6. reuse existing components and routes;
+7. provide a concise implementation plan;
+8. then build this phase.
+
+# Phase 4 Goal
+
+Make the shooting workflow fully functional.
+
+At the end of this phase, users must be able to:
+
+1. open a scene;
+2. select/create a shot;
+3. upload or capture an approved reference;
+4. preview it;
+5. save it as the current reference;
+6. create subsequent takes;
+7. upload/capture take images;
+8. persist media safely;
+9. see take history;
+10. circle/reject/hold takes;
+11. recover cleanly from failed uploads;
+12. use the workflow reliably on the public Replit web application.
+
+No fake AI analysis should appear.
+
+# 1. Shoot Workspace
+
+Complete the central Shoot experience.
+
+The screen should prominently display:
+
+`SC [scene] • SHOT [shot]`
+
+Reference status:
+
+* `NO REFERENCE`
+* `REFERENCE READY`
+
+When no reference exists:
+
+Primary CTA:
+
+**Capture Reference**
+
+For web:
+
+**Upload Reference**
+
+When a reference exists:
+
+Primary CTA:
+
+**Check New Take**
+
+For web:
+
+**Upload New Take**
+
+The existing approved reference should appear as a small preview.
+
+# 2. Web-First Hackathon Workflow
+
+The public Replit web application is the primary hackathon experience.
+
+Ensure judges can use the entire workflow without needing a native app.
+
+On web support:
+
+* file picker;
+* drag-and-drop where appropriate;
+* image preview;
+* reference upload;
+* new take upload;
+* responsive comparison-ready layout.
+
+If browser camera APIs are reliable, camera capture may also be supported.
+
+Do not make the demo depend on camera APIs.
+
+# 3. Mobile/Compact Capture
+
+If the project already supports Expo camera access cleanly, support:
+
+* camera permission;
+* capture;
+* front/rear camera switching where useful;
+* photo preview.
+
+However, web stability takes priority.
+
+Do not destabilize the cross-platform application to force native camera functionality.
+
+# 4. Reference Capture Workflow
+
+When there is no approved reference:
+
+User selects/captures an image.
+
+Show a full preview.
+
+Actions:
+
+* Retake / Choose Another
+* Use as Reference
+
+When the user selects:
+
+**Use as Reference**
+
+perform the real persistence workflow:
+
+```text
+Create/reference take record
+→ compress/prepare image if necessary
+→ upload to object storage
+→ create media record
+→ mark take/reference relationship
+→ persist
+→ update UI
+```
+
+Do not mark it as saved until storage/database operations succeed.
+
+# 5. Approved Reference Rules
+
+A shot should have a clearly identifiable active approved reference.
+
+Define robust rules for:
+
+* initial reference;
+* replacing a reference;
+* previous reference history;
+* reference deletion;
+* orphan prevention.
+
+Replacing a reference should not silently destroy historical information needed later.
+
+Prefer maintaining reference history while identifying one active reference.
+
+# 6. Take Creation
+
+After a reference exists, users can create a new take.
+
+Automatically generate the next take number where appropriate.
+
+Example:
+
+* TAKE 01
+* TAKE 02
+* TAKE 03
+
+Persist:
+
+* shot;
+* take number;
+* timestamp;
+* notes;
+* status;
+* associated media;
+* reference flag;
+* circle status.
+
+Take numbering must remain consistent after reload.
+
+# 7. Image Upload Pipeline
+
+Implement a production-quality image upload pipeline.
+
+Before upload:
+
+* verify file exists;
+* validate file type;
+* reject clearly unsupported content;
+* inspect dimensions where possible;
+* compress unnecessarily large images;
+* preserve sufficient detail for future Gemini analysis.
+
+Do not send enormous raw camera images unnecessarily.
+
+Maintain orientation correctly.
+
+# 8. Object Storage
+
+Use the existing Replit object/media storage architecture.
+
+Do not store image blobs in PostgreSQL.
+
+Store in PostgreSQL only:
+
+* storage key;
+* media type;
+* dimensions;
+* project relationship;
+* scene relationship;
+* take relationship;
+* timestamps;
+* other lightweight metadata.
+
+Media must remain connected to the correct owner/project.
+
+# 9. Authorized Media Access
+
+Protect confidential production media.
+
+Users must not be able to access another user's project images simply by guessing storage paths.
+
+Implement appropriate authorization around:
+
+* upload;
+* retrieval;
+* deletion.
+
+Avoid public permanent media URLs unless explicitly required and secured appropriately.
+
+# 10. Local Preview
+
+Immediately after image selection/capture:
+
+show the user the local preview before waiting for server processing.
+
+This should make the workflow feel responsive.
+
+Upload can then proceed.
+
+Use clear progress feedback.
+
+# 11. Loading States
+
+Create polished real states such as:
+
+* Preparing image
+* Uploading take
+* Saving take
+* Ready
+
+Do not use an “Analyzing” state yet unless a real AI request is actually running.
+
+# 12. Failure Handling
+
+Handle:
+
+* unsupported file;
+* oversized image;
+* upload failure;
+* network interruption;
+* storage failure;
+* database failure;
+* permission denial;
+* abandoned upload;
+* duplicate submission.
+
+Most importantly:
+
+**Never lose the take simply because later AI analysis fails.**
+
+Media persistence must be independent from AI analysis.
+
+# 13. Retry Upload
+
+If upload fails, users should be able to retry without starting the entire capture workflow again where technically practical.
+
+Example:
+
+**Couldn't upload this take**
+
+CTA:
+
+**Retry Upload**
+
+Do not create duplicate take numbers during retries.
+
+# 14. Reference Replacement
+
+Allow users to replace an approved reference.
+
+Use a confirmation such as:
+
+**Replace approved reference?**
+
+Explain that future continuity checks will use the new approved reference.
+
+Record this as an activity event.
+
+Do not delete the old reference automatically unless explicitly requested.
+
+# 15. Shot and Take History
+
+The Shot workspace should clearly display its takes.
+
+Each take card should support:
+
+* take number;
+* capture timestamp;
+* thumbnail;
+* status;
+* notes;
+* reference status;
+* circle status;
+* future continuity issue count.
+
+Support statuses:
+
+* Unrated
+* Hold
+* Circle
+* Reject
+
+# 16. Circle Take
+
+Complete the Circle Take workflow.
+
+When marked:
+
+* persist it;
+* update the take;
+* record Activity;
+* make the state visually obvious.
+
+Allow circle status to be changed later if appropriate.
+
+# 17. Notes
+
+Allow notes on:
+
+* shot;
+* take.
+
+Keep note-taking fast.
+
+Do not turn TakeKeeper into a general note management product.
+
+# 18. Activity Events
+
+Record real events such as:
+
+```text
+Reference captured
+Reference replaced
+Take 02 captured
+Take 03 marked Circle
+Take 04 rejected
+```
+
+Do not create fake continuity-detection events.
+
+# 19. Demo Assets
+
+Prepare **The Last Cup** demo project for later AI testing.
+
+Create an easy path for a judge to:
+
+1. open Demo Project;
+2. open Scene 1;
+3. open Shot 1A;
+4. upload/use Reference A;
+5. upload/use Take B;
+6. later run comparison.
+
+If original sample images are included in the repository, they must be original/licensed and clearly identified as demo assets.
+
+Do not hardcode conclusions about those images.
+
+# 20. Media Cleanup
+
+Implement deletion behavior carefully.
+
+Deleting a take should:
+
+* delete or detach related media safely;
+* preserve database integrity;
+* prevent orphan records.
+
+Deleting a project should remove associated media where practical.
+
+Ensure cascade behavior does not unintentionally remove shared/current references.
+
+# 21. Performance
+
+Optimize the capture-to-saved experience.
+
+Focus on:
+
+* local previews;
+* reasonable compression;
+* async upload UX;
+* minimal unnecessary rerenders;
+* thumbnails for lists where practical;
+* avoiding full-resolution image loading in every card.
+
+# 22. Accessibility
+
+Upload/capture controls must have:
+
+* accessible labels;
+* clear focus behavior;
+* large touch targets;
+* keyboard support on web;
+* progress announcements where practical.
+
+# 23. Privacy Messaging
+
+Add concise user-facing information explaining:
+
+* images are uploaded for continuity processing;
+* media belongs to the project;
+* project/media can be deleted.
+
+Do not bury the user in legal text inside the shooting workflow.
+
+# 24. Analytics Events
+
+Connect existing internal analytics events:
+
+* reference_captured
+* take_created
+* take_circled
+
+If not already defined, add relevant safe media-flow events.
+
+Do not send actual media contents through analytics.
+
+# 25. Do Not Build Yet
+
+Do NOT implement:
+
+* Visual State Agent;
+* image understanding;
+* continuity comparison;
+* issue detection;
+* persistent intentional-change reasoning;
+* fake issue markers;
+* fake “All clear” results;
+* RevenueCat;
+* OneSignal.
+
+The output of this phase is a reliable media capture and persistence pipeline.
+
+# Phase 4 Acceptance Test
+
+Do not mark Phase 4 complete until:
+
+1. open The Last Cup;
+2. open Scene 1;
+3. open Shot 1A;
+4. upload Reference A;
+5. preview works;
+6. save it as Reference;
+7. reload the application;
+8. Reference A remains available;
+9. upload Take B;
+10. Take B receives correct take number;
+11. reload;
+12. Take B and media persist;
+13. upload Take C;
+14. numbering remains correct;
+15. add notes;
+16. notes persist;
+17. mark a take Circle;
+18. Circle state persists;
+19. Activity records capture and circle events;
+20. replace the reference;
+21. previous history remains valid;
+22. failed upload can be retried;
+23. no image blobs exist in PostgreSQL;
+24. unauthorized project media access is prevented;
+25. no fake AI results appear;
+26. build/lint/TypeScript checks pass.
+
+# End-of-Phase Report
+
+When finished provide:
+
+1. media workflow implemented;
+2. storage architecture used;
+3. reference lifecycle behavior;
+4. take numbering behavior;
+5. image compression/processing approach;
+6. authorization behavior;
+7. responsive web behavior;
+8. demo project readiness;
+9. acceptance-test results;
+10. known limitations.
+
+Do not proceed until reference and take capture are reliable.

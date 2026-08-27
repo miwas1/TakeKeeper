@@ -49,6 +49,8 @@ export * from './shotUpdate';
 export * from './shotWorkspace';
 export * from './take';
 export * from './takeInput';
+export * from './takeReferenceStatus';
 export * from './takeUpdate';
 export * from './uploadRequest';
+export * from './uploadRequestContentType';
 export * from './uploadTarget';

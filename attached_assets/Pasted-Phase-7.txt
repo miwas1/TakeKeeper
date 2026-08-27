@@ -1,0 +1,634 @@
+Continue building **TakeKeeper** from the completed previous phases.
+
+The application should now detect real continuity mismatches.
+
+This phase turns those detections into a persistent, human-controlled continuity memory.
+
+This is one of the most important hackathon phases.
+
+Before coding:
+
+1. inspect current issue workflows;
+2. inspect `continuity_state_changes`;
+3. inspect approved-state resolution;
+4. inspect shots/takes;
+5. inspect Agent Activity;
+6. verify Phase 6 acceptance tests;
+7. provide a concise implementation plan;
+8. then implement this phase.
+
+# Phase 7 Goal
+
+Complete the full human-in-the-loop continuity workflow.
+
+Users must be able to:
+
+* Fix & Recheck;
+* mark a change Intentional;
+* choose its effective scope;
+* Ignore an issue;
+* add notes;
+* persist every decision;
+* update approved continuity state;
+* run future continuity checks using the updated state;
+* mark Circle Takes;
+* retain a complete audit history.
+
+The defining behavior is:
+
+**TakeKeeper must remember intentional changes and stop flagging them when they are supposed to remain valid.**
+
+# 1. Human Authority
+
+The filmmaker is always authoritative.
+
+AI findings are suggestions such as:
+
+* potential mismatch;
+* likely mismatch;
+* continuity warning.
+
+Never automatically rewrite approved continuity state solely because Gemini detected a difference.
+
+Only an explicit user action may approve a new continuity state.
+
+# 2. Issue Statuses
+
+Support:
+
+* `open`
+* `fixed`
+* `intentional`
+* `ignored`
+
+Every status change must persist.
+
+# 3. Fix & Recheck
+
+When the user selects:
+
+**Fix & Recheck**
+
+The workflow should:
+
+```text
+Issue identified
+↓
+User fixes physical setup
+↓
+Fix & Recheck
+↓
+Capture/upload another take
+↓
+Visual State Agent
+↓
+Continuity Supervisor
+↓
+New comparison
+```
+
+Do not simply mark the issue fixed before a successful recheck.
+
+# 4. Successful Recheck
+
+If the relevant issue is no longer detected:
+
+mark the previous issue:
+
+`fixed`
+
+Record:
+
+* resolving take;
+* timestamp;
+* user;
+* resolution.
+
+Then show:
+
+# All clear
+
+when no meaningful issues remain.
+
+Supporting text:
+
+**Setup matches your approved continuity.**
+
+# 5. Intentional Change
+
+When the user selects:
+
+**Intentional**
+
+show:
+
+# Update continuity from this take?
+
+Options:
+
+### This shot only
+
+Apply the new state only to the current shot.
+
+### Rest of scene
+
+Apply the state through subsequent relevant shots in the current scene.
+
+### From now on
+
+Update approved continuity state for subsequent applicable takes.
+
+### Cancel
+
+Do not update state until the user confirms a scope.
+
+# 6. Effective Scope
+
+Implement deterministic effective-state rules.
+
+Support at least:
+
+```text
+this_shot
+rest_of_scene
+from_now_on
+```
+
+Use:
+
+* `effective_from_take_id`
+* `effective_until_take_id`
+* `supersedes_change_id`
+
+where appropriate.
+
+# 7. State Change Record
+
+When intentional change is approved, persist:
+
+* scene;
+* continuity item/entity;
+* previous state;
+* new state;
+* effective scope;
+* effective starting point;
+* optional ending point;
+* source take;
+* approving user;
+* timestamp.
+
+Never overwrite history destructively.
+
+# 8. Approved-State Resolution
+
+Update `resolveApprovedContinuityState(...)` so future checks incorporate valid state changes.
+
+Conceptually:
+
+```text
+Base state
+↓
+Reference state
+↓
+Human edits
+↓
+Scoped approved changes
+↓
+Resolved state for this exact shot/take
+```
+
+This resolution should be deterministic application logic.
+
+Do not ask Gemini to decide which historic state change wins.
+
+# 9. Superseding Changes
+
+Support multiple changes over time.
+
+Example:
+
+```text
+Take 2
+Jacket unzipped → zipped
+From now on
+
+Take 8
+Jacket zipped → unzipped
+From now on
+```
+
+Take 9 should expect:
+
+`unzipped`
+
+Preserve both historical decisions.
+
+The newer applicable change supersedes the earlier one.
+
+# 10. Shot-Scoped Example
+
+Example:
+
+Shot 3A:
+
+`Maya jacket open`
+
+Shot 3B:
+
+director intentionally closes jacket for a specific insert.
+
+If marked:
+
+**This shot only**
+
+future Shot 3C should not inherit the zipped state.
+
+Implement this correctly.
+
+# 11. Rest-of-Scene Example
+
+If marked:
+
+**Rest of scene**
+
+the state should apply through subsequent relevant shots in the current scene but not automatically into unrelated scenes.
+
+# 12. Ignore
+
+When the user selects:
+
+**Ignore**
+
+mark the issue:
+
+`ignored`
+
+Store:
+
+* issue;
+* user;
+* timestamp;
+* optional note.
+
+Ignoring an issue must NOT change approved continuity state.
+
+Future takes may flag the same mismatch again if it still conflicts with approved state.
+
+# 13. Add Note
+
+Allow concise notes on issues.
+
+Persist notes.
+
+Do not require notes to resolve an issue.
+
+# 14. Intentional Change Confirmation
+
+After successful approval, show a concise confirmation such as:
+
+**Continuity updated**
+
+Supporting text should explain scope.
+
+Examples:
+
+**This jacket state will be expected for the rest of the scene.**
+
+Do not use technical database terminology.
+
+# 15. Timeline History
+
+Every meaningful decision should appear in Activity.
+
+Examples:
+
+```text
+14:11
+Maya's jacket change marked intentional
+
+14:11
+Approved state updated
+Unzipped → zipped
+From now on
+
+14:16
+Take 05
+No jacket warning detected
+
+14:20
+Take 06 marked Circle
+```
+
+Use real persisted data only.
+
+# 16. Persistent Agent Memory
+
+Demonstrate persistent continuity memory using the application's structured state.
+
+Google Agent Platform session/memory functionality may supplement this architecture where appropriate, but PostgreSQL remains authoritative for exact production continuity state.
+
+Do not use fuzzy model memory as the sole source of truth.
+
+# 17. Agent Awareness
+
+When Continuity Supervisor runs on a future take, provide it with the resolved approved state after all applicable human decisions.
+
+The agent should not need to infer history manually from raw timeline text.
+
+# 18. Acceptance Scenario — Critical
+
+Implement this exact behavior using real analysis.
+
+Reference:
+
+```text
+Maya jacket: unzipped
+Mug: right side
+Phone: face-down
+```
+
+Take B:
+
+```text
+Jacket: zipped
+Mug: moved
+Phone: face-up
+```
+
+System detects changes.
+
+User selects:
+
+```text
+Jacket changed
+→ Intentional
+→ From now on
+```
+
+Then Take C:
+
+```text
+Jacket: still zipped
+Mug: moved again
+Phone: correct
+```
+
+Expected:
+
+* jacket MUST NOT be flagged;
+* mug SHOULD be flagged if it conflicts;
+* phone should not be flagged if correct.
+
+This is fundamental.
+
+# 19. Regression Against Older State
+
+Do not mutate the original reference record simply to support intentional changes.
+
+The historical reference should remain viewable.
+
+The application should distinguish:
+
+* original reference;
+* current approved continuity state.
+
+# 20. Continuity State UI
+
+Enhance Scene → Continuity.
+
+Each item should show its current approved state.
+
+Example:
+
+**Maya's jacket**
+
+`Zipped`
+
+Supporting metadata:
+
+`Changed intentionally · Take 04`
+
+Where useful allow viewing history:
+
+```text
+Originally: unzipped
+Take 04: zipped — approved from now on
+```
+
+# 21. History View
+
+Create a lightweight continuity-history view.
+
+For each item show:
+
+* previous state;
+* new state;
+* source take;
+* scope;
+* user;
+* timestamp.
+
+Do not clutter the main Continuity Bible.
+
+# 22. Undo / Correct Approved Change
+
+Provide a safe mechanism to correct an accidental approval.
+
+Prefer creating a new corrective state change rather than deleting audit history.
+
+Maintain traceability.
+
+# 23. Issue Resolution Audit
+
+Every resolved issue should contain sufficient information to answer:
+
+* what changed;
+* what AI detected;
+* what user decided;
+* when;
+* from which take;
+* what state became approved.
+
+# 24. Circle Take
+
+Complete Circle Take integration with continuity history.
+
+When a take becomes Circle:
+
+* persist it;
+* add timeline event;
+* visually distinguish it;
+* associate the production history with the continuity state active at that point where useful.
+
+# 25. Reference vs Approved State
+
+Clearly separate these concepts in code.
+
+## Reference
+
+Original approved visual source image.
+
+## Approved Continuity State
+
+Current semantic state after human-approved changes.
+
+A future take may legitimately differ from the original image while still matching current approved continuity.
+
+This is one of TakeKeeper's most important concepts.
+
+# 26. Recheck Issue Mapping
+
+When rechecking, determine whether a previous issue has been corrected.
+
+Do not rely only on issue titles.
+
+Use:
+
+* category;
+* entity;
+* state dimension;
+* source issue relationships.
+
+# 27. State Normalization
+
+Ensure state changes use the same normalized representation as the Continuity Supervisor.
+
+Do not store:
+
+```text
+"zip it"
+"zipped"
+"closed jacket"
+```
+
+as unrelated semantic states where avoidable.
+
+# 28. Concurrency Safety
+
+Prevent accidental duplicate state changes caused by:
+
+* double-clicks;
+* repeated requests;
+* network retries.
+
+Use transactions and idempotency where necessary.
+
+# 29. Agent Activity
+
+Record events such as:
+
+```text
+ContinuitySupervisor → resolve_issue
+ContinuitySupervisor → approve_state_change
+ContinuityState → resolve_effective_state
+ContinuitySupervisor → recheck
+```
+
+Show safe tool/action information only.
+
+# 30. Analytics
+
+Record:
+
+* issue_fixed
+* issue_marked_intentional
+* issue_ignored
+* take_circled
+
+Do not send sensitive image content.
+
+# 31. Failure Handling
+
+If the user approves an intentional change but persistence fails:
+
+Do NOT pretend it succeeded.
+
+Display a retryable error.
+
+The previous approved state should remain authoritative until the transaction succeeds.
+
+# 32. Do Not Build Yet
+
+Do not focus yet on:
+
+* advanced Daily Report Agent;
+* PDF report export;
+* RevenueCat;
+* OneSignal;
+* mobile native polish.
+
+The human-decision memory loop must be flawless first.
+
+# Phase 7 Acceptance Test
+
+Do not mark Phase 7 complete until:
+
+1. real issue appears from Take B.
+2. select Ignore.
+3. issue becomes ignored.
+4. approved state does not change.
+5. create another applicable take.
+6. mismatch can appear again.
+7. mark an issue Intentional.
+8. scope dialog appears.
+9. select This shot only.
+10. state applies only to that shot.
+11. test Rest of scene.
+12. state does not leak outside the scene.
+13. test From now on.
+14. future approved state updates.
+15. reload app.
+16. approved state remains updated.
+17. run a future continuity check.
+18. previously approved difference is not incorrectly flagged.
+19. unrelated continuity difference is still flagged.
+20. Fix & Recheck creates a real new check.
+21. corrected issue becomes fixed.
+22. Circle Take persists.
+23. timeline records all decisions.
+24. state history is viewable.
+25. original reference remains intact.
+26. accidental duplicate requests do not create duplicate state changes.
+27. build/lint/TypeScript checks pass.
+
+# Critical Completion Requirement
+
+The following must work end-to-end:
+
+```text
+Reference:
+Jacket unzipped
+
+Take B:
+Jacket zipped
+→ flagged
+
+User:
+Intentional
+→ From now on
+
+Take C:
+Jacket zipped
+
+Result:
+Jacket NOT flagged
+```
+
+If that does not work reliably after page reload, Phase 7 is not complete.
+
+# End-of-Phase Report
+
+When finished provide:
+
+1. decision workflows implemented;
+2. state-resolution architecture;
+3. effective-scope rules;
+4. persistent memory behavior;
+5. Fix & Recheck behavior;
+6. Intentional behavior;
+7. Ignore behavior;
+8. continuity-history behavior;
+9. Circle Take integration;
+10. The Last Cup critical test results;
+11. known limitations;
+12. Phase 7 acceptance-test results.

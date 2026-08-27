@@ -10,4 +10,9 @@ export interface TakeInput {
   notes?: string;
   isReference?: boolean;
   mediaId?: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  submissionKey?: string;
 }

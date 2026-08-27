@@ -4,6 +4,7 @@ import {
   continuityItemsTable,
   db,
   entitlementsTable,
+  pglite,
   projectMembersTable,
   projectsTable,
   scenesTable,
@@ -46,7 +47,7 @@ await db
 let [scene] = await db
   .select()
   .from(scenesTable)
-  .where(and(eq(scenesTable.projectId, project.id), eq(scenesTable.sceneNumber, "12")))
+  .where(and(eq(scenesTable.projectId, project.id), eq(scenesTable.sceneNumber, "1")))
   .limit(1);
 
 if (!scene) {
@@ -54,7 +55,7 @@ if (!scene) {
     .insert(scenesTable)
     .values({
       projectId: project.id,
-      sceneNumber: "12",
+      sceneNumber: "1",
       slugline: "INT. KITCHEN — NIGHT",
       location: "Kitchen",
       intExt: "INT",
@@ -68,13 +69,13 @@ if (!scene) {
 const [existingShot] = await db
   .select({ id: shotsTable.id })
   .from(shotsTable)
-  .where(and(eq(shotsTable.sceneId, scene.id), eq(shotsTable.label, "1A Wide")))
+  .where(and(eq(shotsTable.sceneId, scene.id), eq(shotsTable.label, "1A")))
   .limit(1);
 
 if (!existingShot) {
   await db.insert(shotsTable).values({
     sceneId: scene.id,
-    label: "1A Wide",
+    label: "1A",
     description: "Wide master covering Maya at the kitchen counter.",
     status: "planned",
   });
@@ -125,3 +126,5 @@ if (!seedEvent) {
     metadataJson: { source: "development_seed" },
   });
 }
+
+await pglite?.close();

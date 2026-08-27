@@ -12,6 +12,8 @@ TakeKeeper is a production-monitor workspace that helps film crews know what cha
 - `pnpm run typecheck` — full workspace typecheck
 - `pnpm run build` — typecheck and build
 
+For local testing outside Replit, set `DATABASE_URL` to an absolute `pglite://` path. This selects PGlite and filesystem object storage; the default `.takekeeper/` directory is Git-ignored. Leave Replit's normal PostgreSQL `DATABASE_URL` unchanged for Replit development and production.
+
 ## Stack
 
 - pnpm workspace, Node.js, strict TypeScript
@@ -42,7 +44,7 @@ TakeKeeper is a production-monitor workspace that helps film crews know what cha
 
 ## Product boundaries
 
-Phase 3 adds a real Script Breakdown Agent to the working product shell. Pasted and `.txt` screenplay text is saved before analysis, Gemini output is validated before review, and only explicit approval writes scenes and script-sourced continuity items.
+Phase 3 adds a real Script Breakdown Agent to the working product shell. Pasted and `.txt` screenplay text is saved before analysis, Gemini output is validated before review, and only explicit approval writes scenes and script-sourced continuity items. Phase 4 adds the web-first shooting-media workflow: protected reference/take uploads, local previews, retry-safe persistence, take history, notes, statuses, and reference replacement history.
 
 Do not fabricate continuity observations, issues, confidence scores, comparisons, or "all clear" results. Script Breakdown confidence must come from validated Gemini output or filmmaker review. Visual Results and Reports remain explicit shells until their Google agents are implemented.
 

@@ -1,0 +1,758 @@
+Continue building **TakeKeeper** from the completed previous phases.
+
+This phase introduces the core visual intelligence.
+
+Do NOT yet implement the final reference-versus-current mismatch decision system. That belongs to the Continuity Supervisor phase.
+
+Before coding:
+
+1. inspect the existing Google AI/ADK architecture;
+2. inspect media storage/retrieval;
+3. inspect Continuity Bible schemas;
+4. inspect observations table;
+5. verify the reference/take upload pipeline;
+6. verify previous phase acceptance tests still pass;
+7. provide a concise implementation plan;
+8. then implement this phase.
+
+# Phase 5 Goal
+
+Build a real **Gemini Visual State Agent** that examines a captured scene image and converts what it can actually see into validated structured continuity observations.
+
+The Visual State Agent answers:
+
+**What is visibly true in this image?**
+
+It does NOT answer:
+
+**Is this a continuity error?**
+
+That distinction is critical.
+
+The later Continuity Supervisor Agent will compare approved/reference state against these observations.
+
+# Core Architecture
+
+Maintain this separation:
+
+```text
+IMAGE
+ ↓
+Visual State Agent
+ ↓
+Structured visual observations
+ ↓
+Persist validated observations
+ ↓
+Later Continuity Supervisor
+ ↓
+Continuity issues
+```
+
+Do not combine perception and continuity decision-making into one giant prompt.
+
+# 1. Real Gemini Multimodal Analysis
+
+Use real Google Gemini multimodal capabilities.
+
+The agent should receive:
+
+* image;
+* project context;
+* scene context;
+* shot context;
+* known Continuity Bible entities;
+* optional script context;
+* optional previously known visual entities.
+
+Do not use any non-Google AI.
+
+# 2. Visual State Agent
+
+Implement:
+
+**Visual State Agent**
+
+Goal:
+
+Understand the visible state of a captured filmmaking setup.
+
+Examples of useful questions:
+
+* Is Maya's jacket visible?
+* Is it zipped or unzipped?
+* Is the white mug visible?
+* Where is it relative to Maya?
+* Is the phone visible?
+* Is it face-up or face-down?
+* Are keys visible?
+* Is an actor standing or sitting?
+* Is a lamp visibly on or off?
+
+The agent should report only what is reasonably observable.
+
+# 3. Entity-Guided Observation
+
+Do NOT simply ask Gemini:
+
+**“Describe everything in this image.”**
+
+Use the scene's Continuity Bible to focus analysis.
+
+Example known entities:
+
+```text
+Maya's red jacket
+White coffee mug
+Black phone
+Keys
+Kitchen lamp
+```
+
+Ask the agent to inspect those entities and return their visible state.
+
+This reduces noise and makes later comparison more deterministic.
+
+# 4. Unknown and Not Visible States
+
+The agent must distinguish between:
+
+* visible and identifiable;
+* not visible;
+* uncertain;
+* partially obscured;
+* cannot determine.
+
+Do not force a visual state when the image does not provide enough evidence.
+
+For example:
+
+If the phone cannot be seen:
+
+```json
+{
+  "entity": "black phone",
+  "visibility": "not_visible",
+  "observed_state": null
+}
+```
+
+Do not hallucinate its orientation.
+
+# 5. Structured Output
+
+Use strict structured output validated by the existing shared schemas.
+
+A conceptual observation should resemble:
+
+```json
+{
+  "category": "wardrobe",
+  "entity": "Maya's red jacket",
+  "visibility": "visible",
+  "observed_state": {
+    "closure": "zipped"
+  },
+  "confidence": 0.94,
+  "evidence": "The front closure appears joined from waist to chest."
+}
+```
+
+A full result might resemble:
+
+```json
+{
+  "observations": [],
+  "people": [],
+  "scene_summary": "",
+  "uncertain_items": []
+}
+```
+
+Use the existing production schema rather than copying this literally if a better validated schema already exists.
+
+# 6. Observation Schema
+
+Ensure each observation can represent:
+
+* category;
+* entity;
+* visibility;
+* observed state;
+* confidence;
+* short evidence/explanation;
+* optional region information;
+* uncertainty reason.
+
+Support structured state where practical.
+
+Avoid storing every state only as free-form prose.
+
+For example, prefer:
+
+```json
+{
+  "closure": "zipped"
+}
+```
+
+over:
+
+```json
+{
+  "state": "The jacket seems to be zipped up."
+}
+```
+
+when the category is known.
+
+# 7. Category-Specific State
+
+Where practical, support normalized state dimensions.
+
+Examples:
+
+## Wardrobe
+
+* visible item;
+* color when useful;
+* closure;
+* worn/not worn;
+* sleeves;
+* obvious orientation/state.
+
+## Props
+
+* visible/not visible;
+* position;
+* orientation;
+* held/not held;
+* relative location.
+
+## Hair & Makeup
+
+Only visually clear observations.
+
+## Blocking
+
+* standing;
+* seated;
+* rough relative position;
+* facing direction where clear.
+
+## Set
+
+* visible objects;
+* placement;
+* obvious on/off states;
+* obvious arrangement.
+
+## Action
+
+Only infer actions from what a still image actually supports.
+
+Do not claim temporal actions that cannot be known from one frame.
+
+# 8. Relative Positioning
+
+For props, prefer human-meaningful relative position descriptions.
+
+Examples:
+
+* actor's left;
+* actor's right;
+* on table;
+* beside phone;
+* behind mug;
+* foreground;
+* background.
+
+Avoid relying on exact pixel coordinates for the core feature.
+
+Optional region/bounding data may be stored when Gemini can provide it reliably, but the feature must work without bounding boxes.
+
+# 9. Evidence Grounding
+
+Each important observation should include a concise visual evidence statement.
+
+Example:
+
+**Observed:** phone face-up
+
+**Evidence:** screen surface is visible.
+
+Do not expose hidden reasoning or chain-of-thought.
+
+Only provide short user-safe evidence.
+
+# 10. Confidence
+
+Return numerical confidence between 0 and 1.
+
+Confidence must reflect uncertainty.
+
+Examples:
+
+* clearly visible jacket closure → high;
+* partly hidden mug → medium;
+* unclear phone orientation → low.
+
+Do not artificially inflate confidence.
+
+# 11. Schema Validation
+
+Every Gemini result must pass structured validation.
+
+Required pattern:
+
+```text
+Gemini multimodal result
+→ parse
+→ schema validate
+→ normalize
+→ persist
+```
+
+If validation fails:
+
+* retry intelligently if appropriate;
+* otherwise return a safe analysis failure.
+
+Do not save malformed free-form output as authoritative observations.
+
+# 12. Agent Tool Architecture
+
+Use application-level tools/functions where state needs to be read or written.
+
+Implement or complete tools such as:
+
+* `get_scene`
+* `get_shot`
+* `get_continuity_bible`
+* `get_take_media`
+* `save_observations`
+* `record_agent_event`
+
+The model must not directly mutate PostgreSQL.
+
+# 13. Image Retrieval
+
+The backend/agent must securely retrieve the appropriate image from object storage.
+
+Do not expose long-lived unrestricted URLs unnecessarily.
+
+Ensure the correct image belongs to:
+
+* correct project;
+* correct scene;
+* correct shot;
+* correct take.
+
+# 14. Analyze Reference
+
+When a reference is saved, allow the Visual State Agent to analyze it.
+
+Store the resulting observations associated with the reference take.
+
+Example:
+
+```text
+Reference Take
+ ↓
+Gemini Visual State Agent
+ ↓
+Maya jacket: unzipped
+Mug: actor's right
+Phone: face-down
+Keys: behind phone
+ ↓
+observations table
+```
+
+This creates the structured approved visual baseline needed by the next phase.
+
+# 15. Analyze New Take
+
+When a new take is uploaded, run the same Visual State Agent independently.
+
+Example:
+
+```text
+Take 02
+ ↓
+Visual State Agent
+ ↓
+Maya jacket: zipped
+Mug: actor's left
+Phone: face-up
+ ↓
+observations table
+```
+
+Do NOT call these differences yet.
+
+At this phase they are simply observations.
+
+# 16. Keep Reference and Take Analysis Independent
+
+Do not show the current image and reference image together to the Visual State Agent unless there is a specific well-justified fallback.
+
+Preferred architecture:
+
+```text
+Reference image
+→ observations A
+
+Current image
+→ observations B
+
+Later:
+observations A + observations B
+→ Continuity Supervisor
+```
+
+This separation makes the system:
+
+* easier to debug;
+* easier to evaluate;
+* easier to cache;
+* easier to explain;
+* less likely to hallucinate differences.
+
+# 17. Persist Observations
+
+Store validated observations in the existing observations model.
+
+Each observation should be associated with:
+
+* take;
+* entity;
+* category;
+* structured observed state;
+* confidence;
+* optional region;
+* timestamp.
+
+If the database schema needs a small migration to store richer structured state, implement it cleanly.
+
+Do not break existing data.
+
+# 18. Reanalysis
+
+Allow a take/reference to be reanalyzed.
+
+Possible reasons:
+
+* previous AI request failed;
+* schema validation failed;
+* Continuity Bible was updated;
+* developer wants to test a new model.
+
+Avoid accidentally duplicating authoritative observations.
+
+Use versioning, replacement, or clear latest-analysis semantics.
+
+# 19. Continuity Bible Changes
+
+If a user changes the Continuity Bible after visual analysis, determine a safe strategy.
+
+For example:
+
+* mark relevant observations stale;
+* allow reanalysis;
+* do not silently pretend old analysis considered new entities.
+
+Keep the implementation understandable.
+
+# 20. UI Analysis State
+
+After upload, show real analysis states such as:
+
+**Analyzing setup…**
+
+Stages can include:
+
+* Reading scene
+* Inspecting visible elements
+* Saving observations
+
+Only show stages that correspond to real backend progress.
+
+# 21. Visual Observation Developer View
+
+Add a developer/demo inspection view for Visual State results.
+
+Example:
+
+```text
+Maya's red jacket
+VISIBLE
+closure: zipped
+confidence: 94%
+
+White mug
+VISIBLE
+position: actor_left
+confidence: 91%
+
+Black phone
+VISIBLE
+orientation: face_up
+confidence: 88%
+```
+
+This view is for proving technical behavior.
+
+Normal filmmaking screens should not feel like developer tooling.
+
+# 22. Agent Activity
+
+Record events such as:
+
+```text
+VisualState → get_continuity_bible
+VisualState → analyze_media
+VisualState → save_observations ×4
+```
+
+Record:
+
+* timestamp;
+* agent;
+* tool/action;
+* latency;
+* success/failure;
+* safe metadata.
+
+Do not record hidden chain-of-thought.
+
+# 23. Analysis Failure
+
+If Gemini fails:
+
+Display:
+
+**Couldn't analyze this setup**
+
+Supporting text:
+
+**Your image is saved. Try the analysis again.**
+
+CTA:
+
+**Retry Analysis**
+
+Do not lose or delete the take.
+
+# 24. Low-Confidence Handling
+
+Do not present uncertain states as facts.
+
+If confidence is too low:
+
+* preserve it as uncertain;
+* allow the later Continuity Supervisor to ignore or down-rank it;
+* do not force an observation.
+
+Examples:
+
+```text
+Phone orientation
+Could not determine confidently
+```
+
+This is better than a fabricated result.
+
+# 25. Hallucination Guardrails
+
+Explicitly instruct the agent:
+
+* analyze only visible evidence;
+* do not assume off-screen states;
+* do not infer unspecified wardrobe;
+* do not infer hidden props;
+* do not invent actor identity;
+* do not infer temporal sequence from one still;
+* prefer unknown over unsupported claims;
+* prioritize Continuity Bible entities.
+
+# 26. Person Identification
+
+Do not implement biometric identity recognition.
+
+Use scene context and known character information conservatively.
+
+If multiple people are visible and identity is ambiguous, return uncertainty.
+
+Do not claim to recognize real-world individuals.
+
+# 27. Demo Validation
+
+Use **The Last Cup** as the primary test.
+
+Reference A should visually contain intended states such as:
+
+* red jacket unzipped;
+* white mug on Maya's right;
+* black phone face-down;
+* keys behind phone.
+
+Take B should intentionally alter some of those states.
+
+The Visual State Agent should independently produce structured observations for both.
+
+Do not hardcode expected outputs.
+
+# 28. Evaluation Harness
+
+Create a lightweight developer evaluation tool for repeated image testing.
+
+It should allow developers to:
+
+* select a reference/take;
+* run Visual State Agent;
+* inspect structured output;
+* inspect confidence;
+* inspect latency;
+* inspect schema-validation success;
+* retry analysis.
+
+This is useful for improving prompts before the Continuity Supervisor phase.
+
+Do not expose it in normal production navigation.
+
+# 29. Model Configuration
+
+Use the central:
+
+`GEMINI_MODEL`
+
+environment variable.
+
+Do not hardcode model names throughout the codebase.
+
+If a different model is required for multimodal analysis, centralize that configuration.
+
+Document it clearly.
+
+# 30. Cost and Latency Discipline
+
+Avoid unnecessary repeated Gemini calls.
+
+Where appropriate:
+
+* cache valid observations;
+* reuse saved reference observations;
+* only reanalyze when requested or invalidated;
+* resize/compress images before sending;
+* avoid sending irrelevant project history.
+
+The shoot workflow must feel fast.
+
+# 31. Privacy
+
+Film-set images may be confidential.
+
+Ensure:
+
+* image access is authorized;
+* AI processing occurs through approved Google services;
+* no production image is placed in logs;
+* no unnecessary base64 image content is persisted;
+* deletion remains possible.
+
+# 32. Do Not Build Yet
+
+Do NOT implement:
+
+* final mismatch detection;
+* issue cards populated from comparisons;
+* Intentional state updates;
+* “Fix & Recheck” reasoning;
+* persistent approved continuity changes;
+* Continuity Supervisor Agent;
+* RevenueCat;
+* OneSignal.
+
+Those belong to subsequent phases.
+
+# Phase 5 Acceptance Test
+
+Do not mark Phase 5 complete until:
+
+1. upload/save Reference A;
+2. run real Visual State analysis;
+3. Gemini receives actual scene context and image;
+4. structured output validates;
+5. observations are saved;
+6. reload and confirm observations persist;
+7. upload Take B;
+8. run Visual State analysis;
+9. its observations are independently saved;
+10. no mismatch/continuity decision is fabricated;
+11. hidden/non-visible entities can return unknown/not visible;
+12. low-confidence results are preserved safely;
+13. malformed Gemini output does not enter authoritative storage;
+14. failed analysis can be retried;
+15. take media remains saved when analysis fails;
+16. reanalysis works without corrupting data;
+17. developer inspection view shows structured observations;
+18. Agent Activity records real agent/tool actions;
+19. no non-Google AI is used;
+20. credentials remain server-side;
+21. build/lint/TypeScript checks pass.
+
+# Critical Demonstration
+
+By the end of this phase, the developer view should be able to show something conceptually like:
+
+```text
+REFERENCE A
+
+Maya jacket
+closure: unzipped
+
+White mug
+position: actor_right
+
+Black phone
+orientation: face_down
+
+
+TAKE B
+
+Maya jacket
+closure: zipped
+
+White mug
+position: actor_left
+
+Black phone
+orientation: face_up
+```
+
+But the application must NOT yet say:
+
+**“3 continuity problems detected.”**
+
+That decision belongs to the next Continuity Supervisor phase.
+
+# End-of-Phase Report
+
+When finished provide:
+
+1. Visual State Agent implementation summary;
+2. Gemini multimodal architecture;
+3. schemas used;
+4. tool calls implemented;
+5. normalized visual states supported;
+6. reference analysis behavior;
+7. take analysis behavior;
+8. confidence/uncertainty strategy;
+9. reanalysis behavior;
+10. Agent Activity integration;
+11. evaluation results using The Last Cup;
+12. known limitations;
+13. Phase 5 acceptance-test results.
+
+Do not proceed to continuity comparison until Visual State observations are reliable and reproducible enough to serve as the factual input to the Continuity Supervisor.

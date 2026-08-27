@@ -12,6 +12,8 @@ export interface Shot {
   label: string;
   /** @nullable */
   description: string | null;
+  /** @nullable */
+  notes: string | null;
   status: string;
   takeCount: number;
   issueCount: number;

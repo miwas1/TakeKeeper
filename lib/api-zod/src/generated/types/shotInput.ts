@@ -10,4 +10,5 @@ export interface ShotInput {
   /** @minLength 1 */
   label: string;
   description?: string;
+  notes?: string;
 }

@@ -2,7 +2,7 @@
 
 **Know what changed before you roll again.**
 
-TakeKeeper is an agentic visual continuity supervisor for film crews. It is being built for the Replit track of the Agentic Cinema Hackathon. The current build includes the Phase 3 Script Breakdown Agent: projects can save pasted or `.txt` screenplays, analyze them with Google Gemini, review the extracted scenes and continuity, and approve validated production records.
+TakeKeeper is an agentic visual continuity supervisor for film crews. It is being built for the Replit track of the Agentic Cinema Hackathon. The current build includes the Phase 3 Script Breakdown Agent and Phase 4 shooting-media workflow: projects can save pasted or `.txt` screenplays, analyze them with Google Gemini, review the extracted scenes and continuity, then capture durable reference and take media for production.
 
 The visual comparison workflow is intentionally not implemented yet. There are no fake AI results.
 
@@ -12,7 +12,7 @@ The visual comparison workflow is intentionally not implemented yet. There are n
 - TypeScript throughout the web, API, database, and shared domain contracts
 - PostgreSQL schema for the full planned continuity domain
 - Ownership-aware API access with an explicit development identity adapter
-- Replit App Storage provisioned for future direct media uploads
+- Replit App Storage direct uploads with protected retrieval and cleanup
 - Validated schemas for every planned Gemini structured output
 - Google Gemini / Agent Engine configuration isolated behind server modules
 - Application-tool contracts that keep model output away from direct database writes
@@ -27,10 +27,13 @@ The visual comparison workflow is intentionally not implemented yet. There are n
 - Real Google Gemini scene and continuity extraction with structured-output validation
 - Scene-batched analysis for feature-length screenplays without asking Gemini to echo the full source
 - Editable screenplay review, confidence/evidence labels, approval, and reload persistence
+- Web-first reference and take capture with file picker, drag-and-drop, local previews, progress, retry, and optional mobile camera hint
+- Client-side image inspection, orientation-aware preparation, resize/compression, and server-side signature/dimension verification
+- Idempotent media registration and take submission, shot-locked take numbering, reference replacement history, take notes, shot notes, status controls, and safe media cleanup
 
 The main production path is:
 
-`Projects → Scene → Shot → Shoot → Reference / New Take → Results shell`
+`Projects → Scene → Shot → Shoot → Reference / New Take → persisted history`
 
 ## Stack
 
@@ -120,13 +123,25 @@ Replit App Storage is provisioned. The server now supports:
 
 Media uploads use server-issued reservations and protected reads. Screenplay `.txt` files are read in the browser and sent as validated text; screenplay files are not stored in App Storage.
 
+## Local development mode
+
+When `DATABASE_URL` starts with `pglite`, the database package uses PGlite and the API uses local filesystem object storage. For example, use an absolute path so every workspace command resolves the same database:
+
+```bash
+export DATABASE_URL="pglite:///home/devnexx/Nexxyu/TakeKeeper/.takekeeper/pglite"
+pnpm --filter @workspace/db run push
+pnpm --filter @workspace/scripts run seed
+```
+
+Local media is stored in `.takekeeper/object-storage` by default. Set `TAKEKEEPER_LOCAL_STORAGE_DIR` to use another local directory. `.takekeeper/` is ignored by Git. Any other `DATABASE_URL` keeps the PostgreSQL and Replit App Storage path; local mode does not change Replit development or production behavior.
+
 ## Environment variables
 
 | Variable | Required now | Purpose |
 | --- | --- | --- |
-| `DATABASE_URL` | yes, managed by Replit | PostgreSQL connection |
-| `DEFAULT_OBJECT_STORAGE_BUCKET_ID` | yes, managed by Replit | App Storage bucket |
-| `PRIVATE_OBJECT_DIR` | yes, managed by Replit | private object namespace |
+| `DATABASE_URL` | yes | PostgreSQL connection, or `pglite:///absolute/local/path` for local development |
+| `DEFAULT_OBJECT_STORAGE_BUCKET_ID` | yes for PostgreSQL | Replit App Storage bucket |
+| `PRIVATE_OBJECT_DIR` | yes for PostgreSQL | Replit private object namespace |
 | `GEMINI_MODEL` | optional | central Gemini model selection; defaults to `gemini-2.5-flash` |
 | `GEMINI_API_KEY` | yes for Script Breakdown | Google Gemini credential stored only in Replit Secrets |
 | `GOOGLE_CLOUD_PROJECT` | later | Google Cloud project for ADK / Agent Engine |
@@ -155,6 +170,8 @@ Replit workflows run the API server and web app with their required ports and ba
 **Phase 2:** persisted project, scene, shot, take, continuity, activity, and App Storage production workflow.
 
 **Phase 3:** saved screenplay import, real Gemini Script Breakdown Agent, editable review, approval, and activity tracking.
+
+**Phase 4:** reliable web-first reference and take media capture, protected App Storage persistence, retry-safe uploads, take history, notes, statuses, reference replacement history, and cleanup.
 
 **Next:** production authentication, visual state extraction, continuity comparison, human issue resolution, approved state changes, and reporting.
 

@@ -7,6 +7,8 @@ out-tsc
 *.tsbuildinfo
 .expo
 .expo-shared
+.env
+.takekeeper/
 
 # dependencies
 node_modules

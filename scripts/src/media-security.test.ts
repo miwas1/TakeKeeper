@@ -1,9 +1,26 @@
+import { access } from "node:fs/promises";
+import path from "node:path";
 import assert from "node:assert/strict";
 
 const apiBase = process.env.TAKEKEEPER_API_URL ?? "http://127.0.0.1:8080/api";
 const apiOrigin = new URL(apiBase).origin;
+const usesLocalStorage = process.env.DATABASE_URL?.startsWith("pglite") ?? false;
+const localStorageDir = process.env.TAKEKEEPER_LOCAL_STORAGE_DIR ?? path.resolve(process.cwd(), ".takekeeper", "object-storage");
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+
+function absoluteUrl(value: unknown) {
+  return new URL(String(value), apiBase).toString();
+}
+
+async function localObjectExists(storageKey: string) {
+  try {
+    await access(path.join(localStorageDir, storageKey));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function createReadUrl(storageKey: string) {
   const privateDir = process.env.PRIVATE_OBJECT_DIR;
@@ -68,7 +85,7 @@ try {
     body: JSON.stringify({ projectId, fileName: "fixture.png", contentType: "image/png", size: png.byteLength }),
   }));
 
-  const upload = await fetch(String(target.uploadUrl), {
+  const upload = await fetch(absoluteUrl(target.uploadUrl), {
     method: "PUT",
     headers: { "Content-Type": "image/png" },
     body: png,
@@ -85,7 +102,7 @@ try {
   assert.equal(mediaResponse.status, 302, "Registered media should resolve through a protected redirect");
   const signedReadUrl = mediaResponse.headers.get("location");
   assert.ok(signedReadUrl, "Protected media redirect must provide a signed URL");
-  const beforeDelete = await fetch(signedReadUrl);
+  const beforeDelete = await fetch(absoluteUrl(signedReadUrl));
   assert.ok(beforeDelete.ok, "Uploaded object should exist before project deletion");
 
   const abandonedTarget = await json(await fetch(`${apiBase}/storage/uploads/request-url`, {
@@ -93,22 +110,31 @@ try {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ projectId, fileName: "abandoned.png", contentType: "image/png", size: png.byteLength }),
   }));
-  const abandonedUpload = await fetch(String(abandonedTarget.uploadUrl), {
+  const abandonedUpload = await fetch(absoluteUrl(abandonedTarget.uploadUrl), {
     method: "PUT",
     headers: { "Content-Type": "image/png" },
     body: png,
   });
   assert.ok(abandonedUpload.ok, "Unregistered fixture upload should succeed");
-  const abandonedReadUrl = await createReadUrl(String(abandonedTarget.storageKey));
-  assert.ok((await fetch(abandonedReadUrl)).ok, "Unregistered object should exist before project deletion");
+  let abandonedReadUrl: string | null = null;
+  if (usesLocalStorage) {
+    assert.equal(await localObjectExists(String(abandonedTarget.storageKey)), true, "Unregistered local object should exist before project deletion");
+  } else {
+    abandonedReadUrl = await createReadUrl(String(abandonedTarget.storageKey));
+    assert.ok((await fetch(abandonedReadUrl)).ok, "Unregistered object should exist before project deletion");
+  }
 
   const deletion = await fetch(`${apiBase}/projects/${projectId}`, { method: "DELETE" });
   assert.equal(deletion.status, 204, "Project deletion should succeed after object cleanup");
 
-  const afterDelete = await fetch(signedReadUrl);
+  const afterDelete = await fetch(absoluteUrl(signedReadUrl));
   assert.ok(!afterDelete.ok, "Previously signed URL must no longer return object bytes after deletion");
-  const abandonedAfterDelete = await fetch(abandonedReadUrl);
-  assert.ok(!abandonedAfterDelete.ok, "Project deletion must remove unregistered reservation object bytes");
+  if (usesLocalStorage) {
+    assert.equal(await localObjectExists(String(abandonedTarget.storageKey)), false, "Project deletion must remove unregistered local object bytes");
+  } else {
+    const abandonedAfterDelete = await fetch(absoluteUrl(abandonedReadUrl));
+    assert.ok(!abandonedAfterDelete.ok, "Project deletion must remove unregistered reservation object bytes");
+  }
   console.log("Media security integration checks passed.");
 } finally {
   await fetch(`${apiBase}/projects/${projectId}`, { method: "DELETE" }).catch(() => undefined);

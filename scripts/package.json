@@ -7,6 +7,7 @@
     "hello": "tsx ./src/hello.ts",
     "seed": "tsx ./src/seed.ts",
     "test:media-security": "tsx ./src/media-security.test.ts",
+    "test:phase4-workflow": "tsx ./src/phase4-media-workflow.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
